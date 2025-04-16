@@ -6,13 +6,19 @@ export default function UploadForm({
   onUploadSuccess?: () => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "uploading" | "success" | "error"
+  >("idle");
+  const [message, setMessage] = useState("");
 
   const handleUpload = async () => {
     if (!file) {
-      setStatus("❌ No file selected");
+      setStatus("error");
+      setMessage("No file selected");
       return;
     }
+
+    setStatus("uploading");
 
     const formData = new FormData();
     formData.append("file", file);
@@ -24,37 +30,54 @@ export default function UploadForm({
       });
 
       if (!res.ok) {
-        const error = await res.text();
-        setStatus(`❌ Upload failed: ${error}`);
+        const errorText = await res.text();
+        setStatus("error");
+        setMessage(`Upload failed: ${errorText}`);
         return;
       }
 
       const data = await res.json();
-      console.log("Upload response:", data);
-
       if (!data.id) {
-        setStatus("❌ Upload succeeded but response is missing 'id'");
+        setStatus("error");
+        setMessage("Upload succeeded but no ID in response");
       } else {
-        setStatus(`✅ Uploaded! Report ID: ${data.id}`);
-        if (onUploadSuccess) onUploadSuccess(); // <-- trigger parent reload
+        setStatus("success");
+        setMessage(`Uploaded! Report ID: ${data.id}`);
+        onUploadSuccess?.();
       }
     } catch (err: any) {
-      console.error("Upload error:", err);
-      setStatus(`❌ Upload error: ${err.message}`);
+      setStatus("error");
+      setMessage(`Upload error: ${err.message}`);
     }
   };
 
   return (
-    <div style={{marginBottom: "2rem"}}>
+    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
       <input
         type="file"
         accept=".json"
         onChange={(e) => setFile(e.target.files?.[0] || null)}
+        className="text-sm"
       />
-      <button onClick={handleUpload} style={{marginLeft: "0.5rem"}}>
+      <button
+        onClick={handleUpload}
+        className="px-4 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+      >
         Upload
       </button>
-      {status && <p>{status}</p>}
+      {status !== "idle" && (
+        <p
+          className={`text-sm ${
+            status === "success"
+              ? "text-green-500"
+              : status === "error"
+                ? "text-red-500"
+                : "text-gray-400"
+          }`}
+        >
+          {message}
+        </p>
+      )}
     </div>
   );
 }
