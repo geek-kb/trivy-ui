@@ -1,88 +1,299 @@
-import {useEffect, useState} from "react";
-import {useParams} from "react-router-dom";
+// frontend/src/components/ReportDetail.tsx
+import {useEffect, useMemo, useState} from "react";
+import {useParams, useSearchParams} from "react-router-dom";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
-type Vulnerability = {
-  VulnerabilityID: string;
-  PkgName: string;
-  Severity: string;
+const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
+const COLORS: Record<string, string> = {
+  CRITICAL: "#DC2626",
+  HIGH: "#EA580C",
+  MEDIUM: "#D97706",
+  LOW: "#2563EB",
+  UNKNOWN: "#6B7280",
+};
+const SEVERITY_CLASSES: Record<string, string> = {
+  CRITICAL: "text-red-600",
+  HIGH: "text-orange-500",
+  MEDIUM: "text-yellow-500",
+  LOW: "text-blue-500",
+  UNKNOWN: "text-gray-500",
 };
 
-function getSeverityColor(sev: string) {
-  switch (sev.toUpperCase()) {
-    case "CRITICAL":
-      return "#B91C1C"; // Red
-    case "HIGH":
-      return "#D97706"; // Orange
-    case "MEDIUM":
-      return "#CA8A04"; // Yellow
-    case "LOW":
-      return "#2563EB"; // Blue
-    case "UNKNOWN":
-      return "#6B7280"; // Gray
-    default:
-      return "#000000";
-  }
-}
-
-export default function ReportDetail() {
+export default function ReportDetail({
+  enableSeverityFilter = false,
+}: {
+  enableSeverityFilter?: boolean;
+}) {
   const {id} = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<any>(null);
 
+  const [selectedSeverities, setSelectedSeverities] = useState<string[]>(
+    () => searchParams.getAll("severity") || [...SEVERITIES],
+  );
+  const [pkgFilter, setPkgFilter] = useState(
+    () => searchParams.get("pkgName") || "",
+  );
+  const [cveFilter, setCveFilter] = useState(
+    () => searchParams.get("vulnId") || "",
+  );
+
+  const [sortBy, setSortBy] = useState("Severity");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(
+    () => Number(searchParams.get("page")) || 1,
+  );
+  const [pageSize, setPageSize] = useState(
+    () => Number(searchParams.get("pageSize")) || 10,
+  );
+
   useEffect(() => {
-    fetch(`/api/report/${id}`)
+    const params = new URLSearchParams();
+    selectedSeverities.forEach((s) => params.append("severity", s));
+    if (pkgFilter) params.set("pkgName", pkgFilter);
+    if (cveFilter) params.set("vulnId", cveFilter);
+    params.set("page", String(currentPage));
+    params.set("pageSize", String(pageSize));
+    setSearchParams(params);
+
+    fetch(`/api/report/${id}?${params.toString()}`)
       .then((res) => res.json())
       .then(setData);
-  }, [id]);
+  }, [id, selectedSeverities, pkgFilter, cveFilter, currentPage, pageSize]);
+
+  const toggleSeverity = (sev: string) => {
+    const next = selectedSeverities.includes(sev)
+      ? selectedSeverities.filter((s) => s !== sev)
+      : [...selectedSeverities, sev];
+    setSelectedSeverities(next);
+    setCurrentPage(1);
+  };
+
+  const resetFilters = () => {
+    setSelectedSeverities([...SEVERITIES]);
+    setPkgFilter("");
+    setCveFilter("");
+    setCurrentPage(1);
+  };
+
+  const sortedVulns = useMemo(() => {
+    const vulns =
+      data?.results.flatMap((r: any) =>
+        (r.Vulnerabilities || []).map((v: any) => ({
+          ...v,
+          Target: r.Target,
+        })),
+      ) || [];
+
+    return [...vulns].sort((a, b) => {
+      const valA = a[sortBy] || "";
+      const valB = b[sortBy] || "";
+      return sortDir === "asc"
+        ? valA.localeCompare(valB)
+        : valB.localeCompare(valA);
+    });
+  }, [data, sortBy, sortDir]);
+
+  const paginatedVulns = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return sortedVulns.slice(start, start + pageSize);
+  }, [sortedVulns, currentPage, pageSize]);
 
   if (!data) return <p>Loading report...</p>;
 
   return (
     <div>
-      <h2>Report: {data.artifact}</h2>
-      <p>
-        <strong>Total vulnerabilities:</strong> {data.summary.total}
-      </p>
-      {data.results.map((r: any, i: number) => (
-        <div key={i} style={{marginBottom: "2rem"}}>
-          <h3>{r.Target}</h3>
-          <table style={{width: "100%", borderCollapse: "collapse"}}>
-            <thead>
-              <tr style={{textAlign: "left", borderBottom: "2px solid #ccc"}}>
-                <th style={{padding: "8px"}}>Severity</th>
-                <th style={{padding: "8px"}}>CVE</th>
-                <th style={{padding: "8px"}}>Package</th>
-              </tr>
-            </thead>
-            <tbody>
-              {r.Vulnerabilities.map((v: Vulnerability, idx: number) => (
-                <tr key={idx}>
-                  <td
-                    style={{
-                      padding: "8px",
-                      fontWeight: 600,
-                      color: getSeverityColor(v.Severity),
-                    }}
-                  >
-                    {v.Severity.toUpperCase()}
-                  </td>
-                  <td style={{padding: "8px"}}>
-                    <a
-                      href={`https://cve.org/CVERecord?id=${v.VulnerabilityID}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {v.VulnerabilityID}
-                    </a>
-                  </td>
-                  <td style={{padding: "8px", fontWeight: "bold"}}>
-                    {v.PkgName}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <h2 className="text-xl font-semibold mb-4">Report: {data.artifact}</h2>
+
+      <ResponsiveContainer width="100%" height={240}>
+        <PieChart>
+          <Pie
+            data={SEVERITIES.map((s) => ({
+              name: s,
+              value: data.summary[s.toLowerCase()] || 0,
+            }))}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="50%"
+            outerRadius={80}
+            onClick={({name}) => {
+              setSelectedSeverities([name]);
+              setCurrentPage(1);
+            }}
+          >
+            {SEVERITIES.map((s, i) => (
+              <Cell key={i} fill={COLORS[s]} />
+            ))}
+          </Pie>
+          <Tooltip />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+
+      {enableSeverityFilter && (
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-wrap gap-2">
+            {SEVERITIES.map((sev) => (
+              <button
+                key={sev}
+                onClick={() => toggleSeverity(sev)}
+                className={`px-3 py-1 text-sm border rounded-full transition ${
+                  selectedSeverities.includes(sev)
+                    ? `text-white bg-[${COLORS[sev]}]`
+                    : "text-gray-400 border-gray-300"
+                }`}
+              >
+                {sev}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-4 items-center">
+            <input
+              type="text"
+              placeholder="Filter by package name..."
+              className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
+              value={pkgFilter}
+              onChange={(e) => setPkgFilter(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Filter by CVE ID..."
+              className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
+              value={cveFilter}
+              onChange={(e) => setCveFilter(e.target.value)}
+            />
+            <button
+              onClick={resetFilters}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Reset all filters
+            </button>
+          </div>
         </div>
-      ))}
+      )}
+
+      <table className="min-w-full border-collapse text-sm">
+        <thead className="border-b">
+          <tr className="text-left">
+            {["Severity", "VulnerabilityID", "PkgName", "Target"].map((col) => (
+              <th
+                key={col}
+                className="px-3 py-2 cursor-pointer"
+                onClick={() => {
+                  if (sortBy === col) {
+                    setSortDir(sortDir === "asc" ? "desc" : "asc");
+                  } else {
+                    setSortBy(col);
+                    setSortDir("asc");
+                  }
+                }}
+              >
+                {col}
+                {sortBy === col ? (sortDir === "asc" ? " 🔼" : " 🔽") : ""}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {paginatedVulns.length === 0 ? (
+            <tr>
+              <td
+                colSpan={4}
+                className="px-4 py-3 italic text-gray-500 text-center"
+              >
+                ✅ No vulnerabilities matched your filters.
+              </td>
+            </tr>
+          ) : (
+            paginatedVulns.map((v: any, i: number) => (
+              <tr
+                key={i}
+                className={`border-t hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                  v.Severity === "CRITICAL"
+                    ? "bg-red-50 dark:bg-red-900/20"
+                    : ""
+                }`}
+              >
+                <td
+                  className={`px-3 py-2 font-semibold ${
+                    SEVERITY_CLASSES[v.Severity] || ""
+                  }`}
+                >
+                  {v.Severity}
+                </td>
+                <td className="px-3 py-2">
+                  <a
+                    href={`https://cve.org/CVERecord?id=${v.VulnerabilityID}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    {v.VulnerabilityID}
+                  </a>
+                </td>
+                <td className="px-3 py-2 font-mono">{v.PkgName}</td>
+                <td className="px-3 py-2">{v.Target}</td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+
+      <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="flex items-center gap-2">
+          <label htmlFor="pageSize" className="text-sm">
+            Rows per page:
+          </label>
+          <select
+            id="pageSize"
+            value={pageSize}
+            onChange={(e) => {
+              setPageSize(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="border px-2 py-1 rounded text-sm"
+          >
+            {[10, 15, 25, 50].map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            disabled={currentPage === 1}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span>
+            Page {currentPage} of {Math.ceil(sortedVulns.length / pageSize)}
+          </span>
+          <button
+            onClick={() =>
+              setCurrentPage((p) =>
+                p < Math.ceil(sortedVulns.length / pageSize) ? p + 1 : p,
+              )
+            }
+            disabled={currentPage >= Math.ceil(sortedVulns.length / pageSize)}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

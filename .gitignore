@@ -38,6 +38,6 @@ Thumbs.db
 OPENAI_KEY
 YELP_APIKEY
 backend/.env
-backend/.OPENAI_KEY
+*.OPENAI_KEY
 .venv/
 venv/

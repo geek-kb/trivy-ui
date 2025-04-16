@@ -19,7 +19,7 @@ REPORTS_DIR.mkdir(exist_ok=True)
 
 def fallback_artifact_name(name: Optional[str], fallback_filename: str) -> str:
     if not name or name.strip() in [".", ""]:
-        return fallback_filename  # Use full filename with extension
+        return fallback_filename
     return name.strip()
 
 
@@ -78,7 +78,7 @@ def get_report(
 
     severity_filter = [s.upper() for s in severity] if severity else None
     pkg_filter = pkgName.lower() if pkgName else None
-    vuln_filter = vulnId.upper() if vulnId else None
+    vuln_filter = vulnId.lower() if vulnId else None
 
     severity_count = defaultdict(int)
     filtered_results = []
@@ -94,7 +94,7 @@ def get_report(
                 return False
             if pkg_filter and pkg_filter not in v.PkgName.lower():
                 return False
-            if vuln_filter and vuln_filter != v.VulnerabilityID.upper():
+            if vuln_filter and vuln_filter not in v.VulnerabilityID.lower():
                 return False
             return True
 
@@ -105,6 +105,8 @@ def get_report(
         )
 
     summary = {
+        "artifact": report.ArtifactName,
+        "timestamp": report.dict().get("_meta", {}).get("timestamp", ""),
         "critical": severity_count.get("CRITICAL", 0),
         "high": severity_count.get("HIGH", 0),
         "medium": severity_count.get("MEDIUM", 0),
@@ -115,8 +117,8 @@ def get_report(
 
     return {
         "artifact": report.ArtifactName,
-        "results": filtered_results,
         "summary": summary,
+        "results": filtered_results,
     }
 
 
@@ -124,6 +126,7 @@ def get_report(
 def get_report_summary(report_id: str):
     report = load_report_from_disk(report_id)
     severity_count = defaultdict(int)
+    timestamp = report.dict().get("_meta", {}).get("timestamp", "")
 
     for result in report.Results:
         for vuln in result.Vulnerabilities or []:
@@ -132,6 +135,7 @@ def get_report_summary(report_id: str):
 
     return {
         "artifact": report.ArtifactName,
+        "timestamp": timestamp,
         "total_vulnerabilities": sum(severity_count.values()),
         "critical": severity_count.get("CRITICAL", 0),
         "high": severity_count.get("HIGH", 0),
@@ -143,7 +147,7 @@ def get_report_summary(report_id: str):
 
 @router.post("/upload-report")
 async def upload_report_file(file: UploadFile = File(...)):
-    if not file.filename.endswith(".json"):
+    if not file.filename or not file.filename.endswith(".json"):
         raise HTTPException(status_code=400, detail="Only .json files are accepted")
 
     contents = await file.read()
@@ -151,7 +155,7 @@ async def upload_report_file(file: UploadFile = File(...)):
     try:
         data = json.loads(contents)
         data["ArtifactName"] = fallback_artifact_name(
-            data.get("ArtifactName"), file.filename
+            data.get("ArtifactName"), file.filename or "unknown.json"
         )
         report = TrivyReport(**data)
     except Exception as e:
@@ -220,11 +224,9 @@ def list_reports(
         return True
 
     filtered = list(filter(passes_filters, reports_with_meta))
-
     reports_sorted = sorted(
         filtered, key=lambda r: r.get("timestamp", ""), reverse=True
     )
-
     paginated = reports_sorted[skip : skip + limit]
 
     return {
