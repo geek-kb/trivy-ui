@@ -141,19 +141,23 @@ export default function ReportDetail({
       {enableSeverityFilter && (
         <div className="mb-6 space-y-4">
           <div className="flex flex-wrap gap-2">
-            {SEVERITIES.map((sev) => (
-              <button
-                key={sev}
-                onClick={() => toggleSeverity(sev)}
-                className={`px-3 py-1 text-sm border rounded-full transition ${
-                  selectedSeverities.includes(sev)
-                    ? `text-white bg-[${COLORS[sev]}]`
-                    : "text-gray-400 border-gray-300"
-                }`}
-              >
-                {sev}
-              </button>
-            ))}
+            {SEVERITIES.map((sev) => {
+              const selected = selectedSeverities.includes(sev);
+              return (
+                <button
+                  key={sev}
+                  onClick={() => toggleSeverity(sev)}
+                  style={{
+                    backgroundColor: selected ? COLORS[sev] : "transparent",
+                    color: selected ? "#fff" : "#4B5563",
+                    border: `1px solid ${selected ? COLORS[sev] : "#D1D5DB"}`,
+                  }}
+                  className="px-3 py-1 text-sm rounded-full transition"
+                >
+                  {sev}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap gap-4 items-center">
@@ -224,9 +228,7 @@ export default function ReportDetail({
                 }`}
               >
                 <td
-                  className={`px-3 py-2 font-semibold ${
-                    SEVERITY_CLASSES[v.Severity] || ""
-                  }`}
+                  className={`px-3 py-2 font-semibold ${SEVERITY_CLASSES[v.Severity?.toUpperCase()] || ""}`}
                 >
                   {v.Severity}
                 </td>
@@ -260,7 +262,7 @@ export default function ReportDetail({
               setPageSize(Number(e.target.value));
               setCurrentPage(1);
             }}
-            className="border px-2 py-1 rounded text-sm"
+            className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
           >
             {[10, 15, 25, 50].map((size) => (
               <option key={size} value={size}>
