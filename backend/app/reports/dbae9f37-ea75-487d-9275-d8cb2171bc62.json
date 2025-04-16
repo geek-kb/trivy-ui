@@ -1,0 +1,73 @@
+{
+  "ArtifactName": "pack-lock-sbom.json",
+  "Results": [
+    {
+      "Target": "package-lock.json",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2020-11022",
+          "PkgName": "jquery",
+          "Severity": "MEDIUM"
+        },
+        {
+          "VulnerabilityID": "CVE-2020-11023",
+          "PkgName": "jquery",
+          "Severity": "MEDIUM"
+        },
+        {
+          "VulnerabilityID": "CVE-2021-23337",
+          "PkgName": "lodash",
+          "Severity": "HIGH"
+        },
+        {
+          "VulnerabilityID": "CVE-2020-28500",
+          "PkgName": "lodash",
+          "Severity": "MEDIUM"
+        },
+        {
+          "VulnerabilityID": "CVE-2017-16114",
+          "PkgName": "marked",
+          "Severity": "HIGH"
+        },
+        {
+          "VulnerabilityID": "CVE-2022-21680",
+          "PkgName": "marked",
+          "Severity": "HIGH"
+        },
+        {
+          "VulnerabilityID": "CVE-2022-21681",
+          "PkgName": "marked",
+          "Severity": "HIGH"
+        },
+        {
+          "VulnerabilityID": "CVE-2017-1000427",
+          "PkgName": "marked",
+          "Severity": "MEDIUM"
+        },
+        {
+          "VulnerabilityID": "CVE-2021-44906",
+          "PkgName": "minimist",
+          "Severity": "CRITICAL"
+        },
+        {
+          "VulnerabilityID": "CVE-2020-7598",
+          "PkgName": "minimist",
+          "Severity": "MEDIUM"
+        },
+        {
+          "VulnerabilityID": "CVE-2022-0235",
+          "PkgName": "node-fetch",
+          "Severity": "HIGH"
+        },
+        {
+          "VulnerabilityID": "CVE-2020-15168",
+          "PkgName": "node-fetch",
+          "Severity": "LOW"
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "timestamp": "2025-04-16T15:59:08.523459"
+  }
+}

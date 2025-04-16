@@ -1,0 +1,43 @@
+# Node.js / Frontend
+node_modules/
+dist/
+.vite/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Python / Backend
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+*.log
+.mypy_cache/
+env/
+venv/
+backend/__pycache__/
+backend/reports/  # if you're saving uploaded reports locally
+
+# VSCode and IDEs
+.vscode/
+.idea/
+*.sw?
+*.bak
+
+# macOS and system files
+.DS_Store
+Thumbs.db
+
+# Env and secrets
+.env
+*.env
+.env.local
+.openai_key
+OPENAI_KEY
+YELP_APIKEY
+backend/.env
+backend/.OPENAI_KEY
+.venv/
+venv/
