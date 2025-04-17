@@ -35,16 +35,16 @@ export default function ReportDetail({
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<any>(null);
 
-  const [selectedSeverities, setSelectedSeverities] = useState<string[]>(
-    () => searchParams.getAll("severity") || [...SEVERITIES],
-  );
+  const [selectedSeverities, setSelectedSeverities] = useState<string[]>(() => {
+    const severities = searchParams.getAll("severity");
+    return severities.length > 0 ? severities : [...SEVERITIES];
+  });
   const [pkgFilter, setPkgFilter] = useState(
     () => searchParams.get("pkgName") || "",
   );
   const [cveFilter, setCveFilter] = useState(
     () => searchParams.get("vulnId") || "",
   );
-
   const [sortBy, setSortBy] = useState("Severity");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(
@@ -65,7 +65,8 @@ export default function ReportDetail({
 
     fetch(`/api/report/${id}?${params.toString()}`)
       .then((res) => res.json())
-      .then(setData);
+      .then(setData)
+      .catch((err) => console.error("Failed to load report", err));
   }, [id, selectedSeverities, pkgFilter, cveFilter, currentPage, pageSize]);
 
   const toggleSeverity = (sev: string) => {
@@ -85,11 +86,9 @@ export default function ReportDetail({
 
   const sortedVulns = useMemo(() => {
     const vulns =
-      data?.results.flatMap((r: any) =>
-        (r.Vulnerabilities || []).map((v: any) => ({
-          ...v,
-          Target: r.Target,
-        })),
+      data?.results?.flatMap(
+        (r: any) =>
+          r.Vulnerabilities?.map((v: any) => ({...v, Target: r.Target})) || [],
       ) || [];
 
     const filtered = vulns.filter((v: any) => {
@@ -117,11 +116,13 @@ export default function ReportDetail({
     return sortedVulns.slice(start, start + pageSize);
   }, [sortedVulns, currentPage, pageSize]);
 
+  const totalPages = Math.max(Math.ceil(sortedVulns.length / pageSize), 1);
+
   if (!data) return <p>Loading report...</p>;
 
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Report: {data.artifact}</h2>
+      <h2 className="text-2xl font-bold mb-6">Report: {data.artifact}</h2>
 
       <ResponsiveContainer width="100%" height={240}>
         <PieChart>
@@ -136,8 +137,10 @@ export default function ReportDetail({
             cy="50%"
             outerRadius={80}
             onClick={({name}) => {
-              setSelectedSeverities([name]);
-              setCurrentPage(1);
+              if (name) {
+                setSelectedSeverities([name]);
+                setCurrentPage(1);
+              }
             }}
           >
             {SEVERITIES.map((s, i) => (
@@ -286,21 +289,17 @@ export default function ReportDetail({
         <div className="flex items-center gap-4">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            disabled={currentPage === 1}
+            disabled={currentPage <= 1}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Previous
           </button>
           <span>
-            Page {currentPage} of {Math.ceil(sortedVulns.length / pageSize)}
+            Page {currentPage} of {totalPages}
           </span>
           <button
-            onClick={() =>
-              setCurrentPage((p) =>
-                p < Math.ceil(sortedVulns.length / pageSize) ? p + 1 : p,
-              )
-            }
-            disabled={currentPage >= Math.ceil(sortedVulns.length / pageSize)}
+            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            disabled={currentPage >= totalPages}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >
             Next

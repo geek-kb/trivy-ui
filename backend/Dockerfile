@@ -1,33 +1,26 @@
 
-# backend/Dockerfile
+# Dockerfile
 
-# Base image
+# Use slim Python image for smaller size
 FROM python:3.11-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Create working directory
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-  gcc \
-  && rm -rf /var/lib/apt/lists/*
-
-# Install Python dependencies
-COPY backend/requirements.txt .
+# Install dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app source
+# Copy backend source code
 COPY app ./app
+COPY logging.yaml .
+COPY reports ./reports
 
-# Expose the port (matches uvicorn --port)
+# Copy production environment file and rename to `.env`
+COPY .env.production .env
+
+# Expose API port
 EXPOSE 8000
 
-# Default .env path
-ENV ENV=production
-
-# Start the application with uvicorn
+# Command to run the app
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

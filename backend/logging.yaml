@@ -1,24 +1,28 @@
-# backend/logging.yaml
-
 version: 1
 
 formatters:
+  rich:
+    (): rich.logging.RichHandler
+    rich_tracebacks: true
+    tracebacks_show_locals: true
+    markup: true
+    show_time: true
+    show_level: true
+    show_path: false
+
   default:
-    format: "%(levelname)s | %(asctime)s | %(name)s | %(message)s"
-    datefmt: "%Y-%m-%d %H:%M:%S"
-  access:
-    format: "%(levelname)s | %(asctime)s | %(client_addr)s | %(request_line)s | %(status_code)s"
+    format: "%(levelname)-8s | %(asctime)s | %(name)s | %(message)s"
     datefmt: "%Y-%m-%d %H:%M:%S"
 
 handlers:
   console:
     class: logging.StreamHandler
-    formatter: default
+    formatter: rich
     stream: ext://sys.stdout
 
   access_console:
     class: logging.StreamHandler
-    formatter: access
+    formatter: default
     stream: ext://sys.stdout
 
 loggers:
@@ -29,7 +33,7 @@ loggers:
 
   uvicorn.error:
     handlers: [console]
-    level: ERROR
+    level: INFO
     propagate: False
 
   uvicorn.access:
@@ -39,9 +43,9 @@ loggers:
 
   app:
     handlers: [console]
-    level: DEBUG # In production, you might want to lower to INFO
+    level: DEBUG
     propagate: False
 
 root:
   handlers: [console]
-  level: WARNING
+  level: INFO

@@ -41,7 +41,7 @@ export default function App() {
                 height={158}
                 className="rounded"
               />
-              <span className="text-2xl sm:text-3xl font-bold">Trivy UI</span>
+              <span className="text-4xl sm:text-6xl font-bold">Trivy UI</span>
             </Link>
             <button
               onClick={() => setDarkMode((prev) => !prev)}

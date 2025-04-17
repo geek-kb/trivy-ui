@@ -1,0 +1,50 @@
+# docker-compose.prod.yml
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trivy-ui-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+    volumes:
+      - ./backend/reports:/app/reports
+    working_dir: /app/backend
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+    networks:
+      - trivy-ui-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trivy-ui-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80" # production serving directly on port 80
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - trivy-ui-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+networks:
+  trivy-ui-network:
+    driver: bridge

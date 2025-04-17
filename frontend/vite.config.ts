@@ -1,16 +1,17 @@
-// vite.config.ts
+// frontend/vite.config.ts
+
 import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
 
-// vite.config.ts
 export default defineConfig({
   plugins: [react()],
   server: {
+    host: true,
+    port: 3000,
     proxy: {
       "/api": {
-        target: "http://127.0.0.1:8000", // ✅ use IPv4 explicitly
+        target: "http://trivy-ui-backend:8000", // Use docker-compose backend service name
         changeOrigin: true,
-        secure: false,
       },
     },
   },

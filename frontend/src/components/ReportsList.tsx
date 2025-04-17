@@ -1,5 +1,6 @@
 // frontend/src/components/ReportsList.tsx
 import {useEffect, useState} from "react";
+import {useSearchParams} from "react-router-dom";
 
 type ReportSummary = {
   id: string;
@@ -14,6 +15,13 @@ type ReportSummary = {
 export default function ReportsList() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [artifactFilter, setArtifactFilter] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const sortField =
+    (searchParams.get("sortField") as keyof ReportSummary) || "timestamp";
+  const sortDir = (searchParams.get("sortDir") as "asc" | "desc") || "desc";
+  const currentPage = Number(searchParams.get("page")) || 1;
+  const pageSize = Number(searchParams.get("pageSize")) || 10;
 
   const fetchReports = async () => {
     const res = await fetch(`/api/reports?artifact=${artifactFilter}`);
@@ -24,6 +32,34 @@ export default function ReportsList() {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  const handleSort = (field: keyof ReportSummary) => {
+    const newDir =
+      field === sortField ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    searchParams.set("sortField", field);
+    searchParams.set("sortDir", newDir);
+    searchParams.set("page", "1");
+    setSearchParams(searchParams);
+  };
+
+  const sortedReports = [...reports].sort((a, b) => {
+    const aValue = a[sortField] ?? "";
+    const bValue = b[sortField] ?? "";
+
+    if (typeof aValue === "number" && typeof bValue === "number") {
+      return sortDir === "asc" ? aValue - bValue : bValue - aValue;
+    }
+    return sortDir === "asc"
+      ? String(aValue).localeCompare(String(bValue))
+      : String(bValue).localeCompare(String(aValue));
+  });
+
+  const paginatedReports = sortedReports.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+
+  const totalPages = Math.max(Math.ceil(sortedReports.length / pageSize), 1);
 
   const getBadgeColor = (severity: string) => {
     const colors: Record<string, string> = {
@@ -69,28 +105,31 @@ export default function ReportsList() {
         <table className="min-w-full divide-y divide-gray-200 bg-white dark:bg-gray-800">
           <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">
-                Artifact
-              </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">
-                Timestamp
-              </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
-                Critical
-              </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
-                High
-              </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
-                Medium
-              </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
-                Low
-              </th>
+              {[
+                {label: "Artifact", field: "artifact"},
+                {label: "Timestamp", field: "timestamp"},
+                {label: "Critical", field: "critical"},
+                {label: "High", field: "high"},
+                {label: "Medium", field: "medium"},
+                {label: "Low", field: "low"},
+              ].map(({label, field}) => (
+                <th
+                  key={field}
+                  onClick={() => handleSort(field as keyof ReportSummary)}
+                  className={`px-4 py-3 ${
+                    field === "artifact" || field === "timestamp"
+                      ? "text-left"
+                      : "text-center"
+                  } text-sm font-semibold text-gray-600 dark:text-gray-300 cursor-pointer`}
+                >
+                  {label}
+                  {sortField === field && (sortDir === "asc" ? " 🔼" : " 🔽")}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 text-sm text-gray-800 dark:text-gray-200">
-            {reports.map((r) => (
+            {paginatedReports.map((r) => (
               <tr
                 key={r.id}
                 className="hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -122,6 +161,60 @@ export default function ReportsList() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-between items-center mt-4">
+        <div className="flex items-center gap-2">
+          <label htmlFor="pageSize" className="text-sm">
+            Rows per page:
+          </label>
+          <select
+            id="pageSize"
+            value={pageSize}
+            onChange={(e) => {
+              searchParams.set("pageSize", e.target.value);
+              searchParams.set("page", "1");
+              setSearchParams(searchParams);
+            }}
+            className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
+          >
+            {[10, 20, 50, 100].map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => {
+              const prev = Math.max(currentPage - 1, 1);
+              searchParams.set("page", prev.toString());
+              setSearchParams(searchParams);
+            }}
+            disabled={currentPage <= 1}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <span>
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => {
+              if (currentPage < totalPages) {
+                searchParams.set("page", (currentPage + 1).toString());
+                setSearchParams(searchParams);
+              }
+            }}
+            disabled={currentPage >= totalPages}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
       </div>
     </section>
   );
