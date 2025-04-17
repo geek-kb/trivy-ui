@@ -1,0 +1,36 @@
+# docker-compose.yml
+
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: trivy-ui-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - UVICORN_RELOAD=true
+    volumes:
+      - ./backend:/app/backend
+      - ./reports:/app/reports
+    working_dir: /app/backend
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - trivy-ui-network
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: trivy-ui-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - trivy-ui-network
+
+networks:
+  trivy-ui-network:
+    driver: bridge

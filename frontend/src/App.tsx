@@ -33,11 +33,15 @@ export default function App() {
       <div className="min-h-screen bg-gray-50 text-gray-800 px-4 py-8 dark:bg-gray-900 dark:text-white">
         <div className="max-w-5xl mx-auto bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-2xl shadow-md">
           <header className="flex justify-between items-center mb-10">
-            <Link to="/" className="text-3xl font-bold flex items-center gap-2">
-              <span role="img" aria-label="chart">
-                📊
-              </span>{" "}
-              Trivy UI
+            <Link to="/" className="flex items-center gap-3">
+              <img
+                src="/icon.png"
+                alt="Trivy UI Logo"
+                width={158}
+                height={158}
+                className="rounded"
+              />
+              <span className="text-2xl sm:text-3xl font-bold">Trivy UI</span>
             </Link>
             <button
               onClick={() => setDarkMode((prev) => !prev)}

@@ -1,0 +1,47 @@
+# backend/logging.yaml
+
+version: 1
+
+formatters:
+  default:
+    format: "%(levelname)s | %(asctime)s | %(name)s | %(message)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+  access:
+    format: "%(levelname)s | %(asctime)s | %(client_addr)s | %(request_line)s | %(status_code)s"
+    datefmt: "%Y-%m-%d %H:%M:%S"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: default
+    stream: ext://sys.stdout
+
+  access_console:
+    class: logging.StreamHandler
+    formatter: access
+    stream: ext://sys.stdout
+
+loggers:
+  uvicorn:
+    handlers: [console]
+    level: INFO
+    propagate: False
+
+  uvicorn.error:
+    handlers: [console]
+    level: ERROR
+    propagate: False
+
+  uvicorn.access:
+    handlers: [access_console]
+    level: INFO
+    propagate: False
+
+  app:
+    handlers: [console]
+    level: DEBUG # In production, you might want to lower to INFO
+    propagate: False
+
+root:
+  handlers: [console]
+  level: WARNING

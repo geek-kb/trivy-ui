@@ -1,16 +1,24 @@
-from fastapi import APIRouter, HTTPException, File, UploadFile, Query
-from app.schemas.report import TrivyReport
-from collections import defaultdict
-from pathlib import Path
-from datetime import datetime
-import uuid
+# app/api/routes.py
+
+import logging
 import json
+import uuid
+from pathlib import Path
+from collections import defaultdict
+from datetime import datetime
 from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException, File, UploadFile, Query
+
+from app.schemas.report import TrivyReport
+
+# Initialize logger
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Directory to store report files
-REPORTS_DIR = Path(__file__).parent.parent / "reports"
+# Directory to store uploaded reports
+REPORTS_DIR = Path(__file__).parent.parent.parent / "reports"
 REPORTS_DIR.mkdir(exist_ok=True)
 
 
@@ -39,6 +47,7 @@ def save_report_to_disk(
 def load_report_from_disk(report_id: str) -> TrivyReport:
     file_path = REPORTS_DIR / f"{report_id}.json"
     if not file_path.exists():
+        logger.error(f"Report file not found: {file_path}")
         raise HTTPException(status_code=404, detail="Report not found")
     with open(file_path, encoding="utf-8") as f:
         return TrivyReport(**json.load(f))
@@ -149,22 +158,41 @@ def get_report_summary(report_id: str):
 
 @router.post("/upload-report")
 async def upload_report_file(file: UploadFile = File(...)):
-    if not file.filename or not file.filename.endswith(".json"):
-        raise HTTPException(status_code=400, detail="Only .json files are accepted")
+    allowed_extensions = (".json", ".spdx.json", ".cdx.json", ".tar")
+    allowed_mime_types = [
+        "application/json",
+        "application/x-tar",
+        "application/vnd.cyclonedx+json",
+        "application/spdx+json",
+    ]
+
+    filename = (file.filename or "").strip().lower()
+
+    if not filename.endswith(allowed_extensions):
+        logger.warning(f"Rejected file due to invalid extension: {filename}")
+        raise HTTPException(
+            status_code=400,
+            detail="Only .json, .spdx.json, .cdx.json, or .tar files are accepted",
+        )
+
+    if file.content_type not in allowed_mime_types:
+        logger.warning(f"Rejected file due to invalid MIME type: {file.content_type}")
+        raise HTTPException(status_code=400, detail="Unsupported MIME type for upload")
 
     contents = await file.read()
 
     try:
         data = json.loads(contents)
         data["ArtifactName"] = fallback_artifact_name(
-            data.get("ArtifactName"), file.filename or "unknown.json"
+            data.get("ArtifactName"), filename or "unknown.json"
         )
         report = TrivyReport(**data)
     except Exception as e:
+        logger.error(f"Failed to parse uploaded report: {e}")
         raise HTTPException(status_code=400, detail=f"Invalid Trivy report: {e}")
 
     report_id = str(uuid.uuid4())
-    save_report_to_disk(report_id, report, source_filename=file.filename)
+    save_report_to_disk(report_id, report, source_filename=filename)
     return {"id": report_id, "artifact": report.ArtifactName}
 
 
@@ -209,7 +237,7 @@ def list_reports(
 
                 reports_with_meta.append(report_summary)
         except Exception as e:
-            print(f"Skipping invalid report file {file_path.name}: {e}")
+            logger.warning(f"Skipping invalid report file {file_path.name}: {e}")
             continue
 
     def passes_filters(r):

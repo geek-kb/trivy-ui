@@ -92,14 +92,25 @@ export default function ReportDetail({
         })),
       ) || [];
 
-    return [...vulns].sort((a, b) => {
+    const filtered = vulns.filter((v: any) => {
+      const sev = v.Severity?.toUpperCase() || "UNKNOWN";
+      return (
+        selectedSeverities.includes(sev) &&
+        (!pkgFilter ||
+          v.PkgName?.toLowerCase().includes(pkgFilter.toLowerCase())) &&
+        (!cveFilter ||
+          v.VulnerabilityID?.toLowerCase().includes(cveFilter.toLowerCase()))
+      );
+    });
+
+    return [...filtered].sort((a, b) => {
       const valA = a[sortBy] || "";
       const valB = b[sortBy] || "";
       return sortDir === "asc"
         ? valA.localeCompare(valB)
         : valB.localeCompare(valA);
     });
-  }, [data, sortBy, sortDir]);
+  }, [data, selectedSeverities, pkgFilter, cveFilter, sortBy, sortDir]);
 
   const paginatedVulns = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -264,7 +275,7 @@ export default function ReportDetail({
             }}
             className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
           >
-            {[10, 15, 25, 50].map((size) => (
+            {[10, 15, 25, 50, 100].map((size) => (
               <option key={size} value={size}>
                 {size}
               </option>

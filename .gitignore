@@ -41,3 +41,4 @@ backend/.env
 *.OPENAI_KEY
 .venv/
 venv/
+*.json

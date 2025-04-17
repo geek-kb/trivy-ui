@@ -14,12 +14,9 @@ type ReportSummary = {
 export default function ReportsList() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [artifactFilter, setArtifactFilter] = useState("");
-  const [minHigh, setMinHigh] = useState(0);
 
   const fetchReports = async () => {
-    const res = await fetch(
-      `/api/reports?artifact=${artifactFilter}&min_high=${minHigh}`,
-    );
+    const res = await fetch(`/api/reports?artifact=${artifactFilter}`);
     const data = await res.json();
     setReports(data.results || []);
   };
@@ -48,23 +45,15 @@ export default function ReportsList() {
         className="flex flex-col md:flex-row gap-4 items-start md:items-end"
       >
         <div className="flex flex-col w-full md:w-1/3">
-          <label className="text-sm text-gray-600 mb-1">Artifact Name</label>
+          <label className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+            Artifact Name
+          </label>
           <input
             type="text"
             placeholder="Search by artifact"
             value={artifactFilter}
             onChange={(e) => setArtifactFilter(e.target.value)}
-            className="border px-3 py-2 rounded shadow-sm focus:outline-none focus:ring focus:border-blue-300"
-          />
-        </div>
-
-        <div className="flex flex-col w-full md:w-1/6">
-          <label className="text-sm text-gray-600 mb-1">Min High</label>
-          <input
-            type="number"
-            value={minHigh}
-            onChange={(e) => setMinHigh(Number(e.target.value))}
-            className="border px-3 py-2 rounded shadow-sm focus:outline-none focus:ring focus:border-blue-300"
+            className="border px-3 py-2 rounded shadow-sm focus:outline-none focus:ring focus:border-blue-300 text-black dark:text-white bg-white dark:bg-gray-800"
           />
         </div>
 
@@ -77,32 +66,35 @@ export default function ReportsList() {
       </form>
 
       <div className="overflow-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-        <table className="min-w-full divide-y divide-gray-200 bg-white">
-          <thead className="bg-gray-50">
+        <table className="min-w-full divide-y divide-gray-200 bg-white dark:bg-gray-800">
+          <thead className="bg-gray-50 dark:bg-gray-700">
             <tr>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Artifact
               </th>
-              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600">
+              <th className="px-4 py-3 text-left text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Timestamp
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Critical
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
                 High
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Medium
               </th>
-              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600">
+              <th className="px-4 py-3 text-center text-sm font-semibold text-gray-600 dark:text-gray-300">
                 Low
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200 text-sm text-gray-800">
+          <tbody className="divide-y divide-gray-200 text-sm text-gray-800 dark:text-gray-200">
             {reports.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
+              <tr
+                key={r.id}
+                className="hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
                 <td className="px-4 py-3">
                   <a
                     href={`/report/${r.id}`}

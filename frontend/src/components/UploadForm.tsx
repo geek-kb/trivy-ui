@@ -1,4 +1,20 @@
+// frontend/src/components/UploadForm.tsx
 import {useState} from "react";
+
+const allowedExtensions = [".json", ".spdx.json", ".cdx.json", ".tar"];
+const allowedMimeTypes = [
+  "application/json",
+  "application/x-tar",
+  "application/vnd.cyclonedx+json",
+  "application/spdx+json",
+];
+
+function isValidFile(file: File) {
+  return (
+    allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext)) &&
+    (allowedMimeTypes.includes(file.type) || file.type === "")
+  );
+}
 
 export default function UploadForm({
   onUploadSuccess,
@@ -15,6 +31,23 @@ export default function UploadForm({
     if (!file) {
       setStatus("error");
       setMessage("No file selected");
+      return;
+    }
+
+    if (!isValidFile(file)) {
+      setStatus("error");
+      setMessage("Invalid file type or extension");
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      JSON.parse(text); // Validate JSON syntax before sending
+    } catch (err) {
+      setStatus("error");
+      setMessage(
+        "Invalid JSON file. Please export the report with `--format json`.",
+      );
       return;
     }
 
@@ -43,7 +76,13 @@ export default function UploadForm({
       } else {
         setStatus("success");
         setMessage(`Uploaded! Report ID: ${data.id}`);
-        onUploadSuccess?.();
+        if (onUploadSuccess) {
+          onUploadSuccess();
+        } else {
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
       }
     } catch (err: any) {
       setStatus("error");
@@ -55,9 +94,9 @@ export default function UploadForm({
     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
       <input
         type="file"
-        accept=".json"
+        accept={allowedExtensions.join(",")}
         onChange={(e) => setFile(e.target.files?.[0] || null)}
-        className="text-sm"
+        className="text-sm text-black dark:text-white"
       />
       <button
         onClick={handleUpload}
