@@ -1,45 +1,57 @@
 # Trivy UI
 
-**Trivy UI** is a lightweight web-based dashboard and API service for exploring [Trivy](https://github.com/aquasecurity/trivy) vulnerability scan results. It allows you to upload JSON reports, view summaries, filter vulnerabilities, and drill down into individual findings.
+A lightweight, secure, and modern web UI for browsing, filtering, and visualizing **Trivy vulnerability reports**.
 
 ---
 
-## Project Structure
+## ✨ Features
 
-```
-.
-├── backend/         # FastAPI-based backend API
-│   └── README.md    # Backend usage and development guide
-├── frontend/        # React + Vite + Tailwind frontend
-│   └── README.md    # Frontend usage and development guide
-├── reports/         # Directory where reports are stored (created at runtime)
-├── .gitignore
-└── README.md        # This file
-```
-
----
-
-## Features
-
-- Upload and parse Trivy JSON vulnerability reports
-- View report metadata, summary, and full vulnerability listings
-- Client-side sorting, pagination, and filtering
-- Filter by severity, package name, CVE ID
-- Interactive pie chart summary panel
-- Responsive design with light/dark mode toggle
-- RESTful API endpoints for automation
+- Upload **Trivy JSON**, **SPDX**, **CycloneDX**, or **.tar** vulnerability reports
+- Drag-and-drop file uploads with file type and size validation (max 5MB)
+- Client-side toast notifications for success and error feedback
+- Pagination and dynamic page size selection
+- Sort reports by Artifact, Timestamp, or Vulnerability severity (Critical, High, Medium, Low)
+- Filter reports by Artifact name
+- View report details with:
+  - Severity breakdown via Pie Chart
+  - Filters by Severity, Package Name, or CVE ID
+  - Sorting vulnerabilities table
+- All search, filters, sort state, and pagination are saved in the URL
+- Backend validations:
+  - Filename and Artifact name sanitization
+  - Strict JSON schema validation (Pydantic)
+  - File type & MIME type checks
+  - IP extraction and future-proofing (rate limiting ready)
+- Responsive design with **Dark Mode** support
+- Optimized for developer and production deployments
 
 ---
 
-## Prerequisites
+## 🛠 Technologies Used
 
-- [Trivy](https://github.com/aquasecurity/trivy) installed (for generating reports)
-- Python 3.9+ for the backend
-- Node.js 18+ for the frontend
+- **Frontend**
+
+  - React + Vite
+  - TypeScript
+  - TailwindCSS
+  - React Router
+  - Recharts (for graphs)
+  - React Hot Toast
+
+- **Backend**
+
+  - FastAPI
+  - Pydantic (data validation)
+  - Python 3.11+
+  - Uvicorn
+
+- **DevOps**
+  - Docker & Docker Compose
+  - Environment variable support for dev/prod
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
 ### 1. Clone the Repository
 
@@ -48,74 +60,165 @@ git clone https://github.com/your-org/trivy-ui.git
 cd trivy-ui
 ```
 
-### 2. Setup and Run the Backend
+---
 
-See detailed instructions in [backend/README.md](./backend/README.md)
+### 2. Set Up Environment Variables
+
+Create two `.env` files:
+
+- `.env.dev` for development
+- `.env.prod` for production
+
+Example `.env.dev`:
+
+```env
+BACKEND_PORT=8000
+FRONTEND_PORT=5173
+REPORTS_DIR=./reports
+```
+
+Example `.env.prod`:
+
+```env
+BACKEND_PORT=8000
+FRONTEND_PORT=3000
+REPORTS_DIR=./reports
+```
+
+✅ **Both files must exist before running Docker Compose.**
+
+---
+
+### 3. Running for Development
+
+This mode runs the backend and frontend separately with hot reloading.
 
 ```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+docker-compose --env-file .env.dev -f docker-compose.dev.yml up --build
 ```
 
-### 3. Setup and Run the Frontend
+- Frontend: <http://localhost:5173>
+- Backend: <http://localhost:8000>
 
-See detailed instructions in [frontend/README.md](./frontend/README.md)
+---
+
+### 4. Running for Production
+
+This mode builds static frontend assets and serves everything through the backend.
 
 ```bash
-cd frontend
-npm install
-npm run dev
+docker-compose --env-file .env.prod -f docker-compose.prod.yml up --build
 ```
+
+- All traffic through: <http://localhost:8000>
 
 ---
 
-## Usage Example
+## 🛣️ API Routes Documentation
 
-Generate a Trivy JSON report:
+| Method | Endpoint                      | Description                                            |
+| :----- | :---------------------------- | :----------------------------------------------------- |
+| GET    | `/`                           | Returns backend liveness message                       |
+| GET    | `/health`                     | Health check endpoint (`{"status": "ok"}`)             |
+| POST   | `/upload-report`              | Upload a vulnerability report file                     |
+| POST   | `/report`                     | Upload a report by sending a JSON object (TrivyReport) |
+| GET    | `/report/{report_id}`         | Fetch full report details and vulnerabilities          |
+| GET    | `/report/{report_id}/summary` | Fetch only the report summary (counts)                 |
+| GET    | `/reports`                    | List uploaded reports with optional filters            |
+
+### `/reports` Query Parameters
+
+- `artifact`: Search by artifact name (partial match)
+- `min_critical`, `min_high`, `min_medium`, `min_low`: Minimum vulnerabilities of each severity
+- `skip`: Pagination offset
+- `limit`: Pagination size
+
+Example:
 
 ```bash
-trivy image --format json -o python_3_10-sbom.json python:3.10
+curl "http://localhost:8000/reports?artifact=nginx&min_critical=1"
 ```
 
-Upload using curl:
+---
+
+### `/report/{report_id}` Query Parameters
+
+- `severity`: Filter vulnerabilities by severity (`CRITICAL`, `HIGH`, etc.)
+- `pkgName`: Filter by package name (substring)
+- `vulnId`: Filter by CVE/Vulnerability ID (substring)
+
+Example:
 
 ```bash
-curl -X POST http://localhost:8000/api/upload-report \
-  -F "file=@python_3_10-sbom.json"
+curl "http://localhost:8000/report/1234-abcd?severity=HIGH&pkgName=openssl"
 ```
 
-Or upload directly via the web UI at `http://localhost:5173`
-
 ---
 
-## API Endpoints
-
-The FastAPI backend is mounted at `/api`
-
-- `POST /api/upload-report`: Upload a Trivy JSON file
-- `GET /api/reports`: List all uploaded reports (with filters)
-- `GET /api/report/{id}`: Get full report details
-- `GET /api/report/{id}/summary`: Get high-level severity summary
-
----
-
-## Deployment
-
-You can deploy this project with Docker, Docker Compose, or on any platform that supports Node and Python. For production, make sure to use proper static file serving and HTTPS support.
-
----
-
-## License
-
-This project is open-sourced under the MIT License.
-
----
-
-## Author & Acknowledgements
-
-Built to simplify vulnerability triage using [Trivy](https://github.com/aquasecurity/trivy).
+## 📂 Project Structure
 
 ```
+backend/
+  ├── app/
+  │   ├── api/
+  │   │   └── routes.py
+  │   └── schemas/
+  │       └── report.py
+  └── Dockerfile
 
+frontend/
+  ├── src/
+  │   ├── components/
+  │   │   ├── UploadForm.tsx
+  │   │   ├── ReportsList.tsx
+  │   │   └── ReportDetail.tsx
+  │   └── App.tsx
+  └── Dockerfile
+
+docker-compose.dev.yml
+docker-compose.prod.yml
+.env.dev
+.env.prod
+README.md
 ```
+
+---
+
+## 🧹 Best Practices Followed
+
+- Secure file handling and strict input validation
+- Separation of concerns between backend and frontend
+- URL-driven search, filters, and pagination
+- Detailed error reporting with meaningful messages
+- Defensive backend programming (safe IDs, IP extraction, sanitization)
+- Modern frontend with fast user interactions
+- Ready for deployment in cloud environments
+
+---
+
+## 🩺 Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+Expected output:
+
+```json
+{"status": "ok"}
+```
+
+---
+
+## ✍️ Author
+
+Created with ❤️ by **Itai Ganot**.
+
+- GitHub: [https://github.com/geek-kb](https://github.com/geek-kb)
+- LinkedIn: (optional to add if you want)
+
+---
+
+## 📜 License
+
+MIT License — Free for personal and commercial use.
