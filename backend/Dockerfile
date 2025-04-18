@@ -12,10 +12,14 @@ ENV PIP_NO_CACHE_DIR=1
 # Set working directory
 WORKDIR /app
 
-# Install minimal system packages
+# Install minimal system packages (add tzdata for timezone support)
 RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
+  tzdata \
   && rm -rf /var/lib/apt/lists/*
+
+# Set a DEFAULT timezone environment variable (can be overridden by Docker Compose or CLI)
+ENV TZ=${TZ:-UTC}
 
 # Install Python dependencies
 COPY backend/requirements.txt .
@@ -24,11 +28,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend source code
 COPY backend /app/backend
 
-# Create reports storage (even if using volumes later)
+# Create storage directories
 RUN mkdir -p /app/storage/reports
 
 # Expose FastAPI default port
 EXPOSE 8000
 
-# Default: Run dev server (can override in docker-compose.yml if needed)
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Default command: Development server with hot reload
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

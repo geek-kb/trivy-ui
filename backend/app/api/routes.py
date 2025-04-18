@@ -58,7 +58,7 @@ def extract_timestamp(data: dict) -> str:
         return meta_timestamp
     if created_at:
         return created_at
-    return datetime.utcnow().isoformat()
+    return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M")
 
 
 def is_malicious_json(content: str) -> bool:
@@ -103,7 +103,7 @@ def save_report_to_disk(
     if "_meta" not in data:
         data["_meta"] = {}
     if not data["_meta"].get("timestamp"):
-        data["_meta"]["timestamp"] = datetime.utcnow().isoformat()
+        data["_meta"]["timestamp"] = datetime.now().astimezone().isoformat()
 
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
