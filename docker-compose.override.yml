@@ -1,21 +1,6 @@
-version: "3.8"
+version: "3.9"
 
 services:
   backend:
-    environment:
-      - ENV=development
     volumes:
-      - ./backend/app:/app/app
-      - ./backend/logging.yaml:/app/logging.yaml
-      - ./backend/reports:/app/reports
-      - ./backend/.env.development:/app/.env
-    command: >
-      uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-  frontend:
-    volumes:
-      - ./frontend:/app
-    environment:
-      - NODE_ENV=development
-    command: >
-      npm run dev -- --host
+      - ./logs:/app/logs

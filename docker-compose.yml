@@ -3,14 +3,15 @@ version: "3.9"
 services:
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: trivy-ui-backend
+    working_dir: /app/backend
     ports:
       - "8000:8000"
     volumes:
       - ./backend:/app/backend
-      - ./backend/reports:/app/reports
-    working_dir: /app/backend
+      - ./backend/app/storage/reports:/app/storage/reports
     environment:
       - UVICORN_RELOAD=true
     command: >
@@ -19,14 +20,17 @@ services:
       - trivy-ui-network
 
   frontend:
+    container_name: trivy-ui-frontend
     build:
       context: ./frontend
-    container_name: trivy-ui-frontend
+      dockerfile: Dockerfile.dev
+    working_dir: /app
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    command: npm run dev -- --host
     depends_on:
       - backend
     networks:

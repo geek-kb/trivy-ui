@@ -1,4 +1,7 @@
+
+# ------------------------------
 # Node.js / Frontend
+# ------------------------------
 node_modules/
 dist/
 .vite/
@@ -6,7 +9,9 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
+# ------------------------------
 # Python / Backend
+# ------------------------------
 __pycache__/
 *.pyc
 *.pyo
@@ -17,28 +22,52 @@ __pycache__/
 .mypy_cache/
 env/
 venv/
+.venv/
 backend/__pycache__/
-backend/reports/  # if you're saving uploaded reports locally
+backend/storage/
 
-# VSCode and IDEs
+# ------------------------------
+# Environment and Secrets
+# ------------------------------
+.env
+*.env
+.env.local
+.openai_key
+*.OPENAI_KEY
+OPENAI_KEY
+YELP_APIKEY
+backend/.env
+.env.production
+
+# ------------------------------
+# VSCode / JetBrains IDEs
+# ------------------------------
 .vscode/
 .idea/
 *.sw?
 *.bak
 
-# macOS and system files
+# ------------------------------
+# macOS and Windows System Files
+# ------------------------------
 .DS_Store
 Thumbs.db
 
-# Env and secrets
-.env
-*.env
-.env.local
-.openai_key
-OPENAI_KEY
-YELP_APIKEY
-backend/.env
-*.OPENAI_KEY
-.venv/
-venv/
+# ------------------------------
+# Logs
+# ------------------------------
+logs/*.log
+
+# ------------------------------
+# JSON output files (optional safety)
+# ------------------------------
 *.json
+!frontend/**/*.json  # Allow keeping legitimate frontend JSON configs (if any)
+
+# ------------------------------
+# Other Build Artifacts (optional)
+# ------------------------------
+*.tar.gz
+*.zip
+coverage/
+htmlcov/

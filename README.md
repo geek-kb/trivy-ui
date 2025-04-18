@@ -94,7 +94,7 @@ docker-compose --env-file .env.dev -f docker-compose.dev.yml up --build
 
 Access:
 
-- Frontend: <http://localhost:5173>
+- Frontend: <http://localhost:3000>
 - Backend API: <http://localhost:8000>
 
 ---
@@ -115,21 +115,21 @@ Access:
 
 ## 📂 Project Structure
 
-```
+```bash
 backend/
-  ├── app/
-  │   ├── api/routes.py
-  │   └── schemas/report.py
-  └── Dockerfile
+├── app/
+│ ├── api/routes.py
+│ └── schemas/report.py
+└── Dockerfile
 
 frontend/
-  ├── src/
-  │   ├── components/
-  │   │   ├── UploadForm.tsx
-  │   │   ├── ReportsList.tsx
-  │   │   └── ReportDetail.tsx
-  │   └── App.tsx
-  └── Dockerfile
+├── src/
+│ ├── components/
+│ │ ├── UploadForm.tsx
+│ │ ├── ReportsList.tsx
+│ │ └── ReportDetail.tsx
+│ └── App.tsx
+└── Dockerfile
 
 docker-compose.dev.yml
 docker-compose.prod.yml
@@ -182,7 +182,7 @@ README.md
 Simple backend health endpoint:
 
 ```bash
-curl http://localhost:8000/health
+curl http://localhost:8000/api/health
 ```
 
 Expected output:

@@ -18,12 +18,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # --- Constants ---
-REPORTS_DIR = Path(__file__).parent.parent.parent / "reports"
-REPORTS_DIR.mkdir(exist_ok=True)
+STORAGE_DIR = Path(__file__).parent.parent / "storage"
+REPORTS_DIR = STORAGE_DIR / "reports"
+REPORTS_DIR.mkdir(parents=True, exist_ok=True)
+
 MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
 ALLOWED_EXTENSIONS = (".json", ".spdx.json", ".cdx.json", ".tar")
-MAX_FILENAME_LENGTH = 100  # Reasonable filename limit
-UPLOAD_RATE_LIMIT = 10  # Max uploads per minute (soft basic in-memory)
+MAX_FILENAME_LENGTH = 100
+UPLOAD_RATE_LIMIT = 10  # Max uploads per minute
 
 # --- Internal memory (simple rate limiter for uploads) ---
 _upload_attempts: dict = {}
@@ -32,9 +34,6 @@ _upload_attempts: dict = {}
 
 
 def get_client_ip(request) -> str:
-    """
-    Safely retrieve the client's IP address, or 'unknown' if unavailable.
-    """
     if request.client and request.client.host:
         return request.client.host
     return "unknown"
@@ -63,7 +62,6 @@ def extract_timestamp(data: dict) -> str:
 
 
 def is_malicious_json(content: str) -> bool:
-    # Basic check for <script> or similar injections
     dangerous_patterns = [
         r"<script.*?>",
         r"javascript:",
@@ -77,7 +75,6 @@ def is_malicious_json(content: str) -> bool:
 
 
 def sanitize_json(data: dict) -> dict:
-    # Only keep fields we know
     allowed_keys = {"ArtifactName", "Results", "_meta", "CreatedAt"}
     return {k: v for k, v in data.items() if k in allowed_keys}
 

@@ -1,21 +1,19 @@
-# docker-compose.prod.yml
-
 version: "3.9"
 
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: trivy-ui-backend
     restart: unless-stopped
+    working_dir: /app/backend
     ports:
       - "8000:8000"
     environment:
       - ENV=production
     volumes:
-      - ./backend/reports:/app/reports
-    working_dir: /app/backend
+      - ./backend/app/storage/reports:/app/storage/reports
     command: >
       uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
     networks:
@@ -33,7 +31,7 @@ services:
     container_name: trivy-ui-frontend
     restart: unless-stopped
     ports:
-      - "80:80" # production serving directly on port 80
+      - "80:80"
     depends_on:
       backend:
         condition: service_healthy

@@ -5,3 +5,4 @@ pydantic
 rich
 PyYAML
 python-multipart
+slowapi
