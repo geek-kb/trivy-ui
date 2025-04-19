@@ -1,4 +1,4 @@
-# backend/app/main.py
+# File: backend/app/main.py
 
 import os
 import logging
@@ -9,13 +9,12 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import router
-from app.core.exception_handlers import (
-    generic_exception_handler,
-)
+from app.core.exception_handlers import generic_exception_handler
+from app.core.database import init_db_engine, engine
+from app.models.report import Base
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -43,14 +42,28 @@ app = FastAPI(
     version="0.1.0",
 )
 
+
+# --- Initialize DB Engine ---
+init_db_engine()
+
+
+# --- App Startup Hook to Initialize Database (only for DB backends) ---
+@app.on_event("startup")
+async def on_startup():
+    if engine is not None:
+        logger.info("Running database initialization...")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+
 # --- Global Error Handlers ---
 from fastapi.exception_handlers import (
-    http_exception_handler as fastapi_http_exception_handler,
-    request_validation_exception_handler as fastapi_validation_exception_handler,
+    http_exception_handler,
+    request_validation_exception_handler,
 )
 
-app.add_exception_handler(StarletteHTTPException, fastapi_http_exception_handler)
-app.add_exception_handler(RequestValidationError, fastapi_validation_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
 # --- Configure CORS ---

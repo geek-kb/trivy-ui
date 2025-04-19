@@ -3,15 +3,14 @@ version: "3.9"
 services:
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: trivy-ui-backend
-    working_dir: /app/backend
+    working_dir: /app/backend # <-- point at your code root
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app/backend
-      - ./backend/app/storage/reports:/app/storage/reports
+      - ./backend:/app/backend # <-- now /app/backend/app/storage/reports will exist
     environment:
       - UVICORN_RELOAD=true
       - TZ=Asia/Jerusalem
@@ -21,17 +20,16 @@ services:
       - trivy-ui-network
 
   frontend:
-    container_name: trivy-ui-frontend
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
+    container_name: trivy-ui-frontend
     working_dir: /app
     ports:
       - "3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev -- --host
     depends_on:
       - backend
     networks:

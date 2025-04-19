@@ -1,7 +1,13 @@
-/* frontend/src/index.css */
-
+/* File: frontend/src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Optional: your own custom styles below */
+html,
+body {
+  @apply bg-white text-black transition-colors duration-300;
+}
+html.dark,
+body.dark {
+  @apply bg-[#111827] text-white transition-colors duration-300;
+}

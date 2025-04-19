@@ -6,3 +6,10 @@ rich
 PyYAML
 python-multipart
 slowapi
+pydantic_settings
+pytz
+
+# Database support
+SQLAlchemy>=2.0.0        # ORM for both Postgres and SQLite
+asyncpg                  # PostgreSQL driver (async)
+aiosqlite                # SQLite driver (async)

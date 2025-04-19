@@ -1,14 +1,17 @@
-// frontend/src/components/ReportDetail.tsx
+// File: frontend/src/components/ReportDetail.tsx
+
 import {useEffect, useMemo, useState} from "react";
 import {useParams, useSearchParams} from "react-router-dom";
+import LoadingSpinner from "./LoadingSpinner";
 import {
   PieChart,
   Pie,
   Cell,
   Tooltip,
   ResponsiveContainer,
-  Legend,
+  LabelList,
 } from "recharts";
+import "./Chart.css";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
 const COLORS: Record<string, string> = {
@@ -34,10 +37,12 @@ export default function ReportDetail({
   const {id} = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [selectedSeverities, setSelectedSeverities] = useState<string[]>(() => {
-    const severities = searchParams.getAll("severity");
-    return severities.length > 0 ? severities : [...SEVERITIES];
+    const sev = searchParams.getAll("severity");
+    return sev.length > 0 ? sev : [...SEVERITIES];
   });
   const [pkgFilter, setPkgFilter] = useState(
     () => searchParams.get("pkgName") || "",
@@ -45,7 +50,9 @@ export default function ReportDetail({
   const [cveFilter, setCveFilter] = useState(
     () => searchParams.get("vulnId") || "",
   );
-  const [sortBy, setSortBy] = useState("Severity");
+  const [sortBy, setSortBy] = useState<"Severity" | "Target" | "Package">(
+    "Severity",
+  );
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [currentPage, setCurrentPage] = useState(
     () => Number(searchParams.get("page")) || 1,
@@ -54,239 +61,310 @@ export default function ReportDetail({
     () => Number(searchParams.get("pageSize")) || 10,
   );
 
+  const fetchReport = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      selectedSeverities.forEach((s) => params.append("severity", s));
+      if (pkgFilter) params.set("pkgName", pkgFilter);
+      if (cveFilter) params.set("vulnId", cveFilter);
+      params.set("page", String(currentPage));
+      params.set("pageSize", String(pageSize));
+      setSearchParams(params);
+
+      const res = await fetch(`/api/report/${id}?${params.toString()}`);
+      if (!res.ok) {
+        if (res.status === 404) throw new Error("Report not found");
+        throw new Error("Failed to fetch report");
+      }
+      const json = await res.json();
+      setData(json);
+    } catch (err: any) {
+      console.error("Fetch error:", err);
+      setError(err.message || "Failed to load report.");
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const params = new URLSearchParams();
-    selectedSeverities.forEach((s) => params.append("severity", s));
-    if (pkgFilter) params.set("pkgName", pkgFilter);
-    if (cveFilter) params.set("vulnId", cveFilter);
-    params.set("page", String(currentPage));
-    params.set("pageSize", String(pageSize));
-    setSearchParams(params);
+    fetchReport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, selectedSeverities, currentPage, pageSize]);
 
-    fetch(`/api/report/${id}?${params.toString()}`)
-      .then((res) => res.json())
-      .then(setData)
-      .catch((err) => console.error("Failed to load report", err));
-  }, [id, selectedSeverities, pkgFilter, cveFilter, currentPage, pageSize]);
-
-  const toggleSeverity = (sev: string) => {
-    const next = selectedSeverities.includes(sev)
-      ? selectedSeverities.filter((s) => s !== sev)
-      : [...selectedSeverities, sev];
-    setSelectedSeverities(next);
-    setCurrentPage(1);
-  };
-
-  const resetFilters = () => {
-    setSelectedSeverities([...SEVERITIES]);
-    setPkgFilter("");
-    setCveFilter("");
-    setCurrentPage(1);
-  };
-
-  const sortedVulns = useMemo(() => {
-    const vulns =
-      data?.results?.flatMap(
-        (r: any) =>
-          r.Vulnerabilities?.map((v: any) => ({...v, Target: r.Target})) || [],
-      ) || [];
-
-    const filtered = vulns.filter((v: any) => {
-      const sev = v.Severity?.toUpperCase() || "UNKNOWN";
-      return (
-        selectedSeverities.includes(sev) &&
-        (!pkgFilter ||
-          v.PkgName?.toLowerCase().includes(pkgFilter.toLowerCase())) &&
-        (!cveFilter ||
-          v.VulnerabilityID?.toLowerCase().includes(cveFilter.toLowerCase()))
-      );
+  const allVulns = useMemo(() => {
+    if (!data) return [];
+    const list: any[] = [];
+    data.results.forEach((r: any) => {
+      r.Vulnerabilities.forEach((v: any) => {
+        list.push({
+          target: r.Target,
+          id: v.VulnerabilityID,
+          pkg: v.PkgName,
+          severity: v.Severity.toUpperCase(),
+        });
+      });
     });
-
-    return [...filtered].sort((a, b) => {
-      const valA = a[sortBy] || "";
-      const valB = b[sortBy] || "";
-      return sortDir === "asc"
-        ? valA.localeCompare(valB)
-        : valB.localeCompare(valA);
-    });
+    return list
+      .filter((v) => selectedSeverities.includes(v.severity))
+      .filter((v) =>
+        pkgFilter
+          ? v.pkg.toLowerCase().includes(pkgFilter.toLowerCase())
+          : true,
+      )
+      .filter((v) =>
+        cveFilter ? v.id.toLowerCase().includes(cveFilter.toLowerCase()) : true,
+      )
+      .sort((a, b) => {
+        if (sortBy === "Severity") {
+          return sortDir === "asc"
+            ? SEVERITIES.indexOf(a.severity) - SEVERITIES.indexOf(b.severity)
+            : SEVERITIES.indexOf(b.severity) - SEVERITIES.indexOf(a.severity);
+        }
+        const A = a[sortBy.toLowerCase() as keyof typeof a];
+        const B = b[sortBy.toLowerCase() as keyof typeof b];
+        return sortDir === "asc"
+          ? String(A).localeCompare(String(B))
+          : String(B).localeCompare(String(A));
+      });
   }, [data, selectedSeverities, pkgFilter, cveFilter, sortBy, sortDir]);
 
-  const paginatedVulns = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedVulns.slice(start, start + pageSize);
-  }, [sortedVulns, currentPage, pageSize]);
+  const paginated = allVulns.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize,
+  );
+  const totalPages = Math.max(Math.ceil(allVulns.length / pageSize), 1);
 
-  const totalPages = Math.max(Math.ceil(sortedVulns.length / pageSize), 1);
+  const summaryData = SEVERITIES.map((s) => ({
+    name: s,
+    value: data?.summary[s.toLowerCase()] || 0,
+  }));
 
-  if (!data) return <p>Loading report...</p>;
+  const handleSeverityClick = (severity: string) => {
+    if (!SEVERITIES.includes(severity)) return;
+    setSelectedSeverities([severity]);
+    setCurrentPage(1);
+  };
+
+  if (loading) return <LoadingSpinner />;
+  if (error)
+    return (
+      <div className="flex flex-col items-center justify-center mt-20 text-center">
+        <p className="text-red-500 mb-4">{error}</p>
+        <button
+          onClick={fetchReport}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
 
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Report: {data.artifact}</h2>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">{data.artifact}</h1>
 
-      <ResponsiveContainer width="100%" height={240}>
-        <PieChart>
-          <Pie
-            data={SEVERITIES.map((s) => ({
-              name: s,
-              value: data.summary[s.toLowerCase()] || 0,
-            }))}
-            dataKey="value"
-            nameKey="name"
-            cx="50%"
-            cy="50%"
-            outerRadius={80}
-            onClick={({name}) => {
-              if (name) {
-                setSelectedSeverities([name]);
-                setCurrentPage(1);
-              }
-            }}
-          >
-            {SEVERITIES.map((s, i) => (
-              <Cell key={i} fill={COLORS[s]} />
-            ))}
-          </Pie>
-          <Tooltip />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
+      <div className="w-full h-72 mb-6">
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={summaryData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={100}
+              label={({cx, cy, midAngle, outerRadius, index, value}) => {
+                if (index === undefined || !summaryData[index]) return null;
+                const severity = summaryData[index].name;
 
-      {enableSeverityFilter && (
-        <div className="mb-6 space-y-4">
-          <div className="flex flex-wrap gap-2">
-            {SEVERITIES.map((sev) => {
-              const selected = selectedSeverities.includes(sev);
-              return (
-                <button
-                  key={sev}
-                  onClick={() => toggleSeverity(sev)}
-                  style={{
-                    backgroundColor: selected ? COLORS[sev] : "transparent",
-                    color: selected ? "#fff" : "#4B5563",
-                    border: `1px solid ${selected ? COLORS[sev] : "#D1D5DB"}`,
-                  }}
-                  className="px-3 py-1 text-sm rounded-full transition"
-                >
-                  {sev}
-                </button>
-              );
-            })}
-          </div>
+                const RADIAN = Math.PI / 180;
+                const radius = outerRadius + 20;
+                const angle = midAngle;
+                const x = cx + radius * Math.cos(-angle * RADIAN);
+                const y = cy + radius * Math.sin(-angle * RADIAN);
 
-          <div className="flex flex-wrap gap-4 items-center">
-            <input
-              type="text"
-              placeholder="Filter by package name..."
-              className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
-              value={pkgFilter}
-              onChange={(e) => setPkgFilter(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Filter by CVE ID..."
-              className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
-              value={cveFilter}
-              onChange={(e) => setCveFilter(e.target.value)}
-            />
-            <button
-              onClick={resetFilters}
-              className="text-sm text-blue-600 hover:underline"
+                let finalX = x;
+                let finalY = y;
+                let textAnchor: "start" | "middle" | "end" = "middle";
+
+                if (angle > 75 && angle < 105) {
+                  finalY += -9;
+                  textAnchor = "middle";
+                } else if (angle > 240 && angle < 300) {
+                  finalY += 9;
+                  textAnchor = "middle";
+                } else if ((angle >= 0 && angle <= 45) || angle >= 315) {
+                  finalX += 3;
+                  textAnchor = "start";
+                } else if (angle >= 135 && angle <= 225) {
+                  finalX -= 3;
+                  textAnchor = "end";
+                } else {
+                  textAnchor = finalX > cx ? "start" : "end";
+                }
+
+                return (
+                  <text
+                    x={finalX}
+                    y={finalY}
+                    textAnchor={textAnchor}
+                    dominantBaseline="central"
+                    fill={COLORS[severity]}
+                    fontSize={16}
+                    style={{cursor: "pointer"}}
+                    onClick={() => handleSeverityClick(severity)}
+                  >
+                    {value}
+                  </text>
+                );
+              }}
             >
-              Reset all filters
-            </button>
-          </div>
-        </div>
-      )}
+              {summaryData.map((entry, idx) => (
+                <Cell key={`cell-${idx}`} fill={COLORS[entry.name]} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
 
-      <table className="min-w-full border-collapse text-sm">
-        <thead className="border-b">
-          <tr className="text-left">
-            {["Severity", "VulnerabilityID", "PkgName", "Target"].map((col) => (
+      {/* Severity Filters */}
+      <div className="mb-4 flex flex-wrap gap-4">
+        {["All", ...SEVERITIES].map((s) => (
+          <label key={s} className="flex items-center space-x-2">
+            <input
+              type="checkbox"
+              checked={
+                s === "All"
+                  ? selectedSeverities.length === SEVERITIES.length
+                  : selectedSeverities.includes(s)
+              }
+              onChange={() => {
+                setCurrentPage(1);
+                if (s === "All") {
+                  setSelectedSeverities((prev) =>
+                    prev.length === SEVERITIES.length ? [] : [...SEVERITIES],
+                  );
+                } else {
+                  setSelectedSeverities((prev) =>
+                    prev.includes(s)
+                      ? prev.filter((x) => x !== s)
+                      : [...prev, s],
+                  );
+                }
+              }}
+              className="form-checkbox"
+            />
+            <span
+              className={
+                s === "All" ? "text-black dark:text-white" : SEVERITY_CLASSES[s]
+              }
+            >
+              {s}
+            </span>
+          </label>
+        ))}
+      </div>
+
+      {/* Text Filters */}
+      <form
+        onSubmit={(e) => e.preventDefault()}
+        className="flex space-x-2 mb-4"
+      >
+        <input
+          type="text"
+          placeholder="Filter package"
+          value={pkgFilter}
+          onChange={(e) => {
+            setPkgFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="border px-3 py-2 rounded text-black"
+        />
+        <input
+          type="text"
+          placeholder="Filter CVE"
+          value={cveFilter}
+          onChange={(e) => {
+            setCveFilter(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="border px-3 py-2 rounded text-black"
+        />
+      </form>
+
+      {/* Table */}
+      <table className="min-w-full divide-y divide-gray-700 mb-4">
+        <thead className="bg-[#1F2937] text-white">
+          <tr>
+            {["Target", "Vulnerability", "Package", "Severity"].map((col) => (
               <th
                 key={col}
-                className="px-3 py-2 cursor-pointer"
                 onClick={() => {
-                  if (sortBy === col) {
-                    setSortDir(sortDir === "asc" ? "desc" : "asc");
-                  } else {
-                    setSortBy(col);
-                    setSortDir("asc");
-                  }
+                  setSortBy(col as any);
+                  setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+                  setCurrentPage(1);
                 }}
+                className="px-4 py-2 text-left cursor-pointer"
               >
-                {col}
-                {sortBy === col ? (sortDir === "asc" ? " 🔼" : " 🔽") : ""}
+                {col} {sortBy === col && (sortDir === "asc" ? "↑" : "↓")}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {paginatedVulns.length === 0 ? (
-            <tr>
-              <td
-                colSpan={4}
-                className="px-4 py-3 italic text-gray-500 text-center"
-              >
-                ✅ No vulnerabilities matched your filters.
-              </td>
-            </tr>
-          ) : (
-            paginatedVulns.map((v: any, i: number) => (
-              <tr
-                key={i}
-                className={`border-t hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                  v.Severity === "CRITICAL"
-                    ? "bg-red-50 dark:bg-red-900/20"
-                    : ""
-                }`}
-              >
-                <td
-                  className={`px-3 py-2 font-semibold ${SEVERITY_CLASSES[v.Severity?.toUpperCase()] || ""}`}
-                >
-                  {v.Severity}
-                </td>
-                <td className="px-3 py-2">
+          {paginated.map((v, i) => (
+            <tr
+              key={`${v.id}-${i}`}
+              className="hover:bg-gray-700 hover:text-white"
+            >
+              <td className="px-4 py-2">{v.target}</td>
+              <td className="px-4 py-2">
+                {v.id.startsWith("CVE-") ? (
                   <a
-                    href={`https://cve.org/CVERecord?id=${v.VulnerabilityID}`}
+                    href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${v.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
+                    className="text-blue-400 hover:underline"
                   >
-                    {v.VulnerabilityID}
+                    {v.id}
                   </a>
-                </td>
-                <td className="px-3 py-2 font-mono">{v.PkgName}</td>
-                <td className="px-3 py-2">{v.Target}</td>
-              </tr>
-            ))
-          )}
+                ) : (
+                  v.id
+                )}
+              </td>
+              <td className="px-4 py-2">{v.pkg}</td>
+              <td
+                className={`px-4 py-2 font-semibold ${SEVERITY_CLASSES[v.severity]}`}
+              >
+                {v.severity}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
 
-      <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-        <div className="flex items-center gap-2">
-          <label htmlFor="pageSize" className="text-sm">
-            Rows per page:
-          </label>
+      {/* Pagination */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-2">
+          <span>Rows per page:</span>
           <select
-            id="pageSize"
             value={pageSize}
             onChange={(e) => {
               setPageSize(Number(e.target.value));
               setCurrentPage(1);
             }}
-            className="border px-2 py-1 rounded text-sm text-black dark:text-white bg-white dark:bg-gray-800"
+            className="border rounded px-2 py-1 text-black"
           >
-            {[10, 15, 25, 50, 100].map((size) => (
-              <option key={size} value={size}>
-                {size}
+            {[10, 25, 50, 100].map((n) => (
+              <option key={n} value={n}>
+                {n}
               </option>
             ))}
           </select>
         </div>
-
-        <div className="flex items-center gap-4">
+        <div className="space-x-2">
           <button
             onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
             disabled={currentPage <= 1}
@@ -298,7 +376,7 @@ export default function ReportDetail({
             Page {currentPage} of {totalPages}
           </span>
           <button
-            onClick={() => setCurrentPage((p) => (p < totalPages ? p + 1 : p))}
+            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
             disabled={currentPage >= totalPages}
             className="px-3 py-1 border rounded disabled:opacity-50"
           >

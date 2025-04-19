@@ -1,0 +1,6 @@
+/* Chart.css */
+
+/* Remove the blue rectangle (focus outline) ONLY inside pie charts */
+.recharts-pie *:focus {
+  outline: none;
+}
