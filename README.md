@@ -7,18 +7,21 @@ A modern, secure, and lightweight web UI for browsing, filtering, and visualizin
 ## ✨ Features
 
 - Upload Trivy `.json`, `.spdx.json`, `.cdx.json`, or `.tar` vulnerability reports
-- Drag-and-drop file uploads with file type, size, and JSON content validation
-- Real-time toast notifications for upload and validation feedback
-- Sorting by Artifact Name, Timestamp, and all Severity levels
-- Pagination with rows-per-page selection and page state in URL
+- Drag-and-drop file uploads with file type, size, and JSON structure validation
+- Real-time toast notifications for success/failure feedback
+- Sorting by Artifact Name, Timestamp, Critical, High, Medium, and Low vulnerabilities
+- Pagination with rows-per-page selection and page state stored in URL
 - Full text search by Artifact name
-- View report details with:
+- View report details:
   - Severity breakdown Pie Chart
-  - Vulnerability filters by Severity, Package Name, and CVE ID
-  - CVE links to external CVE records
-- Optimized for Developer and Production environments
-- Dark Mode support out-of-the-box
-- Strict backend validations (JSON schema, size limits, safe filenames)
+  - Filter vulnerabilities by Severity, Package Name, CVE ID
+  - Direct links to CVE databases
+- Optimized for both Development and Production environments
+- Dark Mode ready (TailwindCSS)
+- Strict backend validation (schema, file size, safe filenames)
+- Timestamps automatically adjusted to your configured timezone
+- Lightweight footprint (~100MB images)
+- Internal API metrics (`/api/metrics` — total number of reports)
 
 ---
 
@@ -26,23 +29,28 @@ A modern, secure, and lightweight web UI for browsing, filtering, and visualizin
 
 **Frontend**
 
-- React + Vite
+- React (Vite)
 - TypeScript
 - TailwindCSS
 - React Router
-- Recharts (Pie charts)
+- Recharts (Charts library)
 - React Hot Toast (Notifications)
 
 **Backend**
 
 - FastAPI (Python 3.11+)
-- Pydantic (Strict schema validation)
 - Uvicorn (ASGI server)
+- Pydantic + pydantic-settings
+- SQLAlchemy Core (Optional for DB backends)
+- dotenv (.env support)
+- Async/Await optimized
 
 **DevOps**
 
 - Docker & Docker Compose
-- Environment variables support (`.env.dev`, `.env.prod`)
+- Clean separation of frontend/backend
+- Environment overrides for Dev/Prod
+- Health checks and metrics endpoints
 
 ---
 
@@ -59,57 +67,32 @@ cd trivy-ui
 
 ### 2. Set up Environment Variables
 
-Create two environment files:
-
-- `.env.dev` (for development)
-- `.env.prod` (for production)
-
-Example `.env.dev`:
+Backend `.env` (inside `backend/.env`):
 
 ```env
-BACKEND_PORT=8000
-FRONTEND_PORT=5173
-REPORTS_DIR=./reports
+# Backend environment
+ENV=development
+TIMEZONE=Asia/Jerusalem
+UVICORN_HOST=0.0.0.0
+UVICORN_PORT=8000
+
+# Storage backend options: filesystem / sqlite / postgres
+DB_BACKEND=filesystem
+FILESYSTEM_STORAGE_DIR=backend/app/storage/reports
+# POSTGRES_URL=postgresql+asyncpg://user:password@localhost:5432/trivyui
+# SQLITE_PATH=backend/trivy_ui.db
 ```
-
-Example `.env.prod`:
-
-```env
-BACKEND_PORT=8000
-FRONTEND_PORT=3000
-REPORTS_DIR=./reports
-```
-
-✅ Both `.env` files must exist before running Docker Compose.
 
 ---
 
-### 3. Run in Development Mode
-
-Separate backend and frontend containers with hot-reloading.
+### 3. Build and Run Locally
 
 ```bash
-docker-compose --env-file .env.dev -f docker-compose.dev.yml up --build
+docker-compose up --build
 ```
 
-Access:
-
-- Frontend: <http://localhost:3000>
-- Backend API: <http://localhost:8000>
-
----
-
-### 4. Run in Production Mode
-
-Single backend container serving both API and frontend static files.
-
-```bash
-docker-compose --env-file .env.prod -f docker-compose.prod.yml up --build
-```
-
-Access:
-
-- All traffic: <http://localhost:8000>
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend: [http://localhost:8000](http://localhost:8000)
 
 ---
 
@@ -118,107 +101,122 @@ Access:
 ```bash
 backend/
 ├── app/
-│ ├── api/routes.py
-│ └── schemas/report.py
-└── Dockerfile
-
+│   ├── api/routes.py
+│   ├── core/config.py
+│   ├── core/database.py
+│   ├── schemas/report.py
+│   ├── storage/filesystem.py
+│   ├── storage/factory.py
+│   └── models/report.py
+│   └── main.py
 frontend/
 ├── src/
-│ ├── components/
-│ │ ├── UploadForm.tsx
-│ │ ├── ReportsList.tsx
-│ │ └── ReportDetail.tsx
-│ └── App.tsx
-└── Dockerfile
-
-docker-compose.dev.yml
-docker-compose.prod.yml
-.env.dev
-.env.prod
+│   ├── components/
+│   │   ├── UploadForm.tsx
+│   │   ├── ReportsList.tsx
+│   │   └── ReportDetail.tsx
+│   └── App.tsx
+Dockerfile (backend)
+Dockerfile.dev (frontend)
+docker-compose.yml
+backend/.env
 README.md
 ```
 
 ---
 
-## 🛣️ API Routes
+## 🧪 API Endpoints
 
-| Method | Endpoint                      | Description                                   |
-| :----- | :---------------------------- | :-------------------------------------------- |
-| GET    | `/`                           | Backend liveness check                        |
-| GET    | `/health`                     | Health check endpoint                         |
-| POST   | `/upload-report`              | Upload a file (validated Trivy JSON)          |
-| POST   | `/report`                     | Upload a report directly as JSON body         |
-| GET    | `/report/{report_id}`         | Fetch full report details and vulnerabilities |
-| GET    | `/report/{report_id}/summary` | Fetch report summary only                     |
-| GET    | `/reports`                    | List all uploaded reports with filters        |
-
-### `/reports` Query Parameters
-
-- `artifact`: Filter by artifact name
-- `min_critical`, `min_high`, `min_medium`, `min_low`: Minimum vulnerabilities by severity
-- `skip` and `limit`: Pagination
-
-### `/report/{report_id}` Query Parameters
-
-- `severity`: Filter vulnerabilities by severity
-- `pkgName`: Filter vulnerabilities by package name
-- `vulnId`: Filter vulnerabilities by vulnerability ID
+| Method | Endpoint             | Description                                |
+| :----- | :------------------- | :----------------------------------------- |
+| GET    | `/api/`              | Root alive check                           |
+| GET    | `/api/health`        | Health check endpoint                      |
+| GET    | `/api/metrics`       | Returns number of stored reports           |
+| POST   | `/api/upload-report` | Upload Trivy file                          |
+| POST   | `/api/report`        | Upload Trivy JSON via body                 |
+| GET    | `/api/report/{id}`   | Fetch specific report details              |
+| GET    | `/api/reports`       | List reports (with filters and pagination) |
 
 ---
 
-## 🧹 Best Practices
+## ⚙️ Configuration Options
 
-- Strong server-side validation
-- Filename and Artifact name sanitization
-- Upload size limits
-- MIME type and extension validation
-- IP handling and rate limiting support ready
-- Frontend and Backend clean separation
+| Variable                 | Description                                      | Example                       |
+| :----------------------- | :----------------------------------------------- | :---------------------------- |
+| `TIMEZONE`               | Timezone name for timestamps (pytz format)       | `Asia/Jerusalem`              |
+| `DB_BACKEND`             | `filesystem`, `sqlite`, or `postgres` backend    | `filesystem`                  |
+| `FILESYSTEM_STORAGE_DIR` | Path for storing uploaded reports locally        | `backend/app/storage/reports` |
+| `POSTGRES_URL`           | PostgreSQL connection string (if using postgres) | `postgresql+asyncpg://...`    |
+| `SQLITE_PATH`            | SQLite database path (if using sqlite)           | `backend/trivy_ui.db`         |
 
 ---
 
-## 🩺 Health Check
+## 📈 Health & Metrics
 
-Simple backend health endpoint:
+Check health:
 
 ```bash
 curl http://localhost:8000/api/health
 ```
 
-Expected output:
+Expected:
 
 ```json
 {"status": "ok"}
 ```
 
+Check metrics (total reports count):
+
+```bash
+curl http://localhost:8000/api/metrics
+```
+
+Expected:
+
+```json
+{"reports_count": 42}
+```
+
 ---
 
-## 📋 TODOs (Planned Improvements)
+## 🧹 Best Practices Implemented
 
-| Item                             | Description                                                                                    |
-| :------------------------------- | :--------------------------------------------------------------------------------------------- |
-| Kubernetes Support               | Create Kubernetes manifests for backend, frontend, and a shared volume for reports             |
-| Helm Chart                       | Package the project as a Helm chart for easier Kubernetes deployment                           |
-| Database Integration             | Add support for using PostgreSQL / SQLite (based on env variable switch) instead of filesystem |
-| API Authentication               | Add API token-based or JWT authentication (optional read-only/public mode)                     |
-| Rate Limiting                    | Protect the upload endpoints from abuse                                                        |
-| RBAC (Role Based Access Control) | Create admin and viewer roles for more secure access                                           |
-| TLS                              | Support HTTPS inside the backend container                                                     |
-| External Storage                 | Add option to save reports to AWS S3 / GCS / Azure Blob                                        |
-| Multi-User Support               | (optional) Associate reports to different users if auth is added                               |
-| Export Reports                   | Add ability to download filtered reports from UI                                               |
-| WebSocket / Live Updates         | Push updates if new reports are uploaded                                                       |
+- **Strict file upload validation:** max 5MB, `.json` or `.tar` only
+- **Safe filenames** via sanitization
+- **Automatic timezone correction** for reports
+- **Rate limiting** support (IP-based, internal)
+- **Frontend error boundaries**
+- **Docker healthchecks ready**
+- **Clear CORS policies** for dev vs prod
+- **Strict typing across codebase (TypeScript and Python)**
+
+---
+
+## 📋 TODOs and Future Improvements
+
+| Item                         | Description                                                  |
+| :--------------------------- | :----------------------------------------------------------- |
+| Kubernetes Support           | Helm chart + manifests for EKS, GKE, AKS                     |
+| API Authentication           | Bearer tokens, API keys or JWTs                              |
+| Rate Limiting Enforcement    | per IP rate limiter to prevent abuse                         |
+| RBAC Roles                   | Admin vs Viewer accounts                                     |
+| HTTPS in Docker              | Enable TLS termination in backend                            |
+| Multi-user Mode              | Associate reports to different users if authentication added |
+| External Storage Support     | Upload directly to AWS S3, GCS, or Azure Blob                |
+| Live Updates                 | Implement WebSocket for real-time UI refresh                 |
+| Export Filtered Reports      | Allow users to download filtered reports as JSON             |
+| Trivy Integration (Optional) | Trigger Trivy scans directly via UI (with credentials)       |
 
 ---
 
 ## ✍️ Author
 
-Created with ❤️ by **Itai Ganot**.
+Created with ❤️ by **Itai Ganot**
 
-- GitHub: [https://github.com/geek-kb](https://github.com/geek-kb)
+- GitHub: [geek-kb](https://github.com/geek-kb)
 
 ---
 
 ## 📜 License
 
-MIT License — Free for personal and commercial use.
+MIT License — free to use, modify, distribute, and build on.
