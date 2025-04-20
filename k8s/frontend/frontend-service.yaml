@@ -1,0 +1,14 @@
+# trivy-ui-frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: trivy-ui-frontend
+  namespace: trivy-ui
+spec:
+  selector:
+    app: trivy-ui-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+  type: ClusterIP

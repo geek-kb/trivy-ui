@@ -116,7 +116,7 @@ export default function UploadForm({
       <div
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
-        className="relative border-2 border-dashed p-8 rounded"
+        className="relative flex flex-col items-center justify-center text-center border-2 border-dashed p-8 rounded"
       >
         <input
           ref={inputRef}

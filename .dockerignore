@@ -1,54 +1,14 @@
-# Ignore Python cache
+
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Ignore Node modules
-node_modules/
-frontend/node_modules/
-backend/node_modules/
-
-# Ignore Vite cache
-frontend/.vite/
-
-# Ignore virtual environments
-.venv/
-env/
-venv/
-
-# Ignore system files
-.DS_Store
-Thumbs.db
-
-# Ignore Git and editor metadata
-.git/
-.gitignore
-*.swp
-*.swo
-*.bak
-
-# Ignore coverage, test, and temporary files
-coverage/
-htmlcov/
-*.log
-*.tmp
-*.old
-*.orig
-
-# Ignore reports (optional, if you don't want them built into the image)
-reports/
-backend/reports/
-*.json
-
-# Ignore local environment files
+*.db
+*.sqlite3
 .env
-*.env
-.env.*
-
-# Ignore docker-compose override files (optional)
-docker-compose.override.yml
-
-# Ignore frontend build output
-frontend/dist/
-
+*.tar.gz
+*.zip
+.idea/
+.vscode/
+.dockerignore
+Dockerfile

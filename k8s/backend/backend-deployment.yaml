@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trivy-ui-backend
+  namespace: trivy-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trivy-ui-backend
+  template:
+    metadata:
+      labels:
+        app: trivy-ui-backend
+    spec:
+      containers:
+        - name: trivy-ui-backend
+          image: camelel/trivy-ui-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          volumeMounts:
+            - name: reports-volume
+              mountPath: /app/backend/app/storage/reports
+      volumes:
+        - name: reports-volume
+          persistentVolumeClaim:
+            claimName: reports-pvc

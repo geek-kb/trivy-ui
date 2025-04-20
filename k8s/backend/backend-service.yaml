@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: trivy-ui-backend
+  name: trivy-ui-backend
+  namespace: trivy-ui
+spec:
+  ports:
+    - port: 8000
+      protocol: TCP
+      targetPort: 8000
+  selector:
+    app: trivy-ui-backend
+  sessionAffinity: None
+  type: ClusterIP

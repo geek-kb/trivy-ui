@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trivy-ui-frontend
+  namespace: trivy-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trivy-ui-frontend
+  template:
+    metadata:
+      labels:
+        app: trivy-ui-frontend
+    spec:
+      containers:
+        - name: trivy-ui-frontend
+          image: camelel/trivy-ui-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80

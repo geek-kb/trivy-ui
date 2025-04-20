@@ -69,7 +69,7 @@ export default function App() {
 
           {/* Subtitle */}
           <p className="text-center text-gray-600 dark:text-gray-300 mb-8">
-            Explore security reports with filtering and summary views
+            Explore Trivy security reports with filtering and summary views
           </p>
 
           {/* Routes */}
@@ -89,10 +89,7 @@ export default function App() {
               }
             />
 
-            <Route
-              path="/report/:id"
-              element={<ReportDetail enableSeverityFilter={true} />}
-            />
+            <Route path="/report/:id" element={<ReportDetail />} />
           </Routes>
         </div>
       </div>

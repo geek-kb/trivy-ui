@@ -1,20 +1,14 @@
-# backend/app/core/exception_handlers.py
-from fastapi import FastAPI, Request
-import logging
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Request
+from fastapi.responses import JSONResponse, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.responses import Response
-from fastapi.exception_handlers import (
-    http_exception_handler as fastapi_http_exception_handler,
-    request_validation_exception_handler as fastapi_validation_exception_handler,
-)
+from typing import Awaitable
+import logging
 
 logger = logging.getLogger("app")
 
 
-async def http_exception_handler(
+async def custom_http_exception_handler(
     request: Request, exc: StarletteHTTPException
 ) -> Response:
     logger.warning(f"HTTP error occurred: {exc.detail} (status code {exc.status_code})")
@@ -24,7 +18,7 @@ async def http_exception_handler(
     )
 
 
-async def validation_exception_handler(
+async def custom_validation_exception_handler(
     request: Request, exc: RequestValidationError
 ) -> Response:
     logger.warning(f"Validation error: {exc.errors()}")

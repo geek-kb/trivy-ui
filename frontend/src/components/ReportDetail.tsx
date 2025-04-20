@@ -3,21 +3,14 @@
 import {useEffect, useMemo, useState} from "react";
 import {useParams, useSearchParams} from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  ResponsiveContainer,
-  LabelList,
-} from "recharts";
+import {PieChart, Pie, Cell, Tooltip, ResponsiveContainer} from "recharts";
 import "./Chart.css";
 
 const SEVERITIES = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
 const COLORS: Record<string, string> = {
   CRITICAL: "#DC2626",
   HIGH: "#EA580C",
-  MEDIUM: "#D97706",
+  MEDIUM: "#FBC02D",
   LOW: "#2563EB",
   UNKNOWN: "#6B7280",
 };
@@ -29,11 +22,7 @@ const SEVERITY_CLASSES: Record<string, string> = {
   UNKNOWN: "text-gray-500",
 };
 
-export default function ReportDetail({
-  enableSeverityFilter = false,
-}: {
-  enableSeverityFilter?: boolean;
-}) {
+export default function ReportDetail() {
   const {id} = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [data, setData] = useState<any>(null);

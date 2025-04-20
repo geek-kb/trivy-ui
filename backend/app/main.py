@@ -1,20 +1,22 @@
-# File: backend/app/main.py
-
 import os
 import logging
 import logging.config
 import yaml
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.gzip import GZipMiddleware
+from starlette.responses import JSONResponse, Response
+from typing import Callable, Awaitable, cast
 
 from app.api.routes import router
-from app.core.exception_handlers import generic_exception_handler
 from app.core.database import init_db_engine, engine
 from app.models.report import Base
+from app.core import exception_handlers
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -42,12 +44,15 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# --- Add Middleware ---
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # --- Initialize DB Engine ---
 init_db_engine()
 
 
-# --- App Startup Hook to Initialize Database (only for DB backends) ---
+# --- App Startup Hook ---
 @app.on_event("startup")
 async def on_startup():
     if engine is not None:
@@ -56,16 +61,28 @@ async def on_startup():
             await conn.run_sync(Base.metadata.create_all)
 
 
-# --- Global Error Handlers ---
-from fastapi.exception_handlers import (
-    http_exception_handler,
-    request_validation_exception_handler,
+# --- Register Exception Handlers ---
+app.add_exception_handler(
+    StarletteHTTPException,
+    cast(
+        Callable[[Request, Exception], Awaitable[Response]],
+        exception_handlers.custom_http_exception_handler,
+    ),
 )
-
-app.add_exception_handler(StarletteHTTPException, http_exception_handler)
-app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
-app.add_exception_handler(Exception, generic_exception_handler)
-
+app.add_exception_handler(
+    RequestValidationError,
+    cast(
+        Callable[[Request, Exception], Awaitable[Response]],
+        exception_handlers.custom_validation_exception_handler,
+    ),
+)
+app.add_exception_handler(
+    Exception,
+    cast(
+        Callable[[Request, Exception], Awaitable[Response]],
+        exception_handlers.generic_exception_handler,
+    ),
+)
 # --- Configure CORS ---
 if ENVIRONMENT == "development":
     logger.info("Running in development mode with open CORS policy")
@@ -78,8 +95,8 @@ if ENVIRONMENT == "development":
     )
 else:
     allowed_origins = [
-        "http://trivy-ui.default.svc.cluster.local",
-        "https://trivy-ui.default.svc.cluster.local",
+        "http://trivy-ui.trivy-ui.svc.cluster.local",
+        "https://trivy-ui.trivy-ui.svc.cluster.local",
     ]
     logger.info(f"Running in production mode. Allowed origins: {allowed_origins}")
     app.add_middleware(
@@ -94,14 +111,14 @@ else:
 app.include_router(router, prefix="/api")
 
 
-# --- Health Check ---
+# --- Health Check Endpoint ---
 @app.get("/")
-def root_status():
+async def root_status():
     logger.info("Health check on / endpoint")
     return {"message": "Trivy UI backend is running"}
 
 
-# --- Run with Uvicorn if needed ---
+# --- Optional Uvicorn Run ---
 if __name__ == "__main__":
     import uvicorn
 
