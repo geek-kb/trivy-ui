@@ -54,6 +54,13 @@ A modern, secure, and lightweight web UI for browsing, filtering, and visualizin
 
 ---
 
+## UI screenshots
+
+![Trivy UI - Main Page - Reports List](https://raw.githubusercontent.com/geek-kb/trivy-ui/trivy-ui-reports-list.png)
+![Trivy UI - Main Page - Report Details](https://raw.githubusercontent.com/geek-kb/trivy-ui/trivy-ui-reports-details.png)
+
+---
+
 ## 🚀 Getting Started
 
 ### 1. Clone the Repository
