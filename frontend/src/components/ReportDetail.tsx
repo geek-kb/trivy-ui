@@ -188,19 +188,26 @@ export default function ReportDetail({
                 let finalY = y;
                 let textAnchor: "start" | "middle" | "end" = "middle";
 
+                // Adjust for vertical (up/down) text positioning
                 if (angle > 75 && angle < 105) {
+                  // Top center (90 degrees): move label slightly UP
                   finalY += -9;
                   textAnchor = "middle";
                 } else if (angle > 240 && angle < 300) {
+                  // Bottom center (270 degrees): move label slightly DOWN
                   finalY += 9;
                   textAnchor = "middle";
+                  // Adjust for horizontal (right/left) text positioning
                 } else if ((angle >= 0 && angle <= 45) || angle >= 315) {
+                  // Right side (0–45 degrees or near 360): move label a bit to the RIGHT
                   finalX += 3;
                   textAnchor = "start";
                 } else if (angle >= 135 && angle <= 225) {
+                  // Left side (180 degrees): move label a bit to the LEFT
                   finalX -= 3;
                   textAnchor = "end";
                 } else {
+                  // Any other angle (default fallback): decide based on x position
                   textAnchor = finalX > cx ? "start" : "end";
                 }
 
