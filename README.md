@@ -106,28 +106,82 @@ docker-compose up --build
 ## 📂 Project Structure
 
 ```bash
-backend/
-├── app/
-│   ├── api/routes.py
-│   ├── core/config.py
-│   ├── core/database.py
-│   ├── schemas/report.py
-│   ├── storage/filesystem.py
-│   ├── storage/factory.py
-│   └── models/report.py
-│   └── main.py
-frontend/
-├── src/
-│   ├── components/
-│   │   ├── UploadForm.tsx
-│   │   ├── ReportsList.tsx
-│   │   └── ReportDetail.tsx
-│   └── App.tsx
-Dockerfile (backend)
-Dockerfile.dev (frontend)
-docker-compose.yml
-backend/.env
-README.md
+.
+├── ./CONTRIBUTING.md
+├── ./LICENSE
+├── ./README.md
+├── ./backend
+│   ├── ./backend/Dockerfile
+│   ├── ./backend/README.md
+│   ├── ./backend/app
+│   │   ├── ./backend/app/api
+│   │   │   └── ./backend/app/api/routes.py
+│   │   ├── ./backend/app/core
+│   │   │   ├── ./backend/app/core/config.py
+│   │   │   ├── ./backend/app/core/database.py
+│   │   │   └── ./backend/app/core/exception_handlers.py
+│   │   ├── ./backend/app/main.py
+│   │   ├── ./backend/app/models
+│   │   │   └── ./backend/app/models/report.py
+│   │   ├── ./backend/app/schemas
+│   │   │   └── ./backend/app/schemas/report.py
+│   │   └── ./backend/app/storage
+│   │   ├── ./backend/app/storage/base.py
+│   │   ├── ./backend/app/storage/factory.py
+│   │   ├── ./backend/app/storage/filesystem.py
+│   │   ├── ./backend/app/storage/postgres.py
+│   │   ├── ./backend/app/storage/reports
+│   │   └── ./backend/app/storage/sqlite.py
+│   ├── ./backend/logging.yaml
+│   ├── ./backend/logs
+│   │   └── ./backend/logs/README.md
+│   ├── ./backend/requirements.txt
+├── ./docker-compose.override.yml
+├── ./docker-compose.prod.yml
+├── ./docker-compose.yml
+├── ./frontend
+│   ├── ./frontend/Dockerfile
+│   ├── ./frontend/Dockerfile.dev
+│   ├── ./frontend/README.md
+│   ├── ./frontend/dist
+│   │   ├── ./frontend/dist/assets
+│   │   │   ├── ./frontend/dist/assets/index-CpjW13Wg.css
+│   │   │   └── ./frontend/dist/assets/index-Gatrr9HR.js
+│   │   └── ./frontend/dist/index.html
+│   ├── ./frontend/eslint.config.js
+│   ├── ./frontend/index.html
+│   ├── ./frontend/nginx
+│   │   ├── ./frontend/nginx/default.conf
+│   │   └── ./frontend/nginx/nginx.conf
+│   ├── ./frontend/postcss.config.js
+│   ├── ./frontend/public
+│   ├── ./frontend/src
+│   │   ├── ./frontend/src/App.css
+│   │   ├── ./frontend/src/App.tsx
+│   │   ├── ./frontend/src/api.ts
+│   │   ├── ./frontend/src/components
+│   │   │   ├── ./frontend/src/components/Chart.css
+│   │   │   ├── ./frontend/src/components/LoadingSpinner.tsx
+│   │   │   ├── ./frontend/src/components/ReportDetail.tsx
+│   │   │   ├── ./frontend/src/components/ReportsList.tsx
+│   │   │   └── ./frontend/src/components/UploadForm.tsx
+│   │   ├── ./frontend/src/index.css
+│   │   ├── ./frontend/src/main.tsx
+│   │   └── ./frontend/src/vite-env.d.ts
+│   ├── ./frontend/tailwind.config.js
+│   └── ./frontend/vite.config.ts
+├── ./k8s
+│   ├── ./k8s/backend
+│   │   ├── ./k8s/backend/backend-deployment.yaml
+│   │   ├── ./k8s/backend/backend-pv.yaml
+│   │   ├── ./k8s/backend/backend-pvc.yaml
+│   │   └── ./k8s/backend/backend-service.yaml
+│   └── ./k8s/frontend
+│   ├── ./k8s/frontend/frontend-deployment.yaml
+│   ├── ./k8s/frontend/frontend-ingress.yaml
+│   └── ./k8s/frontend/frontend-service.yaml
+├── ./trivy-ui-report-details.png
+└── ./trivy-ui-reports-list.png
 ```
 
 ---
