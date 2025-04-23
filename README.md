@@ -240,6 +240,59 @@ Expected:
 
 ---
 
+## An example how can be used in a Github Actions pipeline
+
+```yaml
+# .github/workflows/trivy-scan.yml
+
+name: Trivy Scan and Upload
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  trivy:
+    name: Trivy Scan and Upload
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker Image
+        run: |
+          docker build -t my-app:latest .
+
+      - name: Run Trivy scan and save JSON report
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/workspace \
+            aquasec/trivy:latest \
+            image --format json -o /workspace/trivy-report.json my-app:latest
+
+      - name: Upload report to Trivy UI
+        run: |
+          curl -X POST http://trivy-ui.default.svc/report \
+            -H "Content-Type: application/json" \
+            --data-binary @trivy-report.json
+```
+
+---
+
 ## 🧹 Best Practices Implemented
 
 - **Strict file upload validation:** max 5MB, `.json` or `.tar` only
