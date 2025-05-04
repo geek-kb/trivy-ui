@@ -1,18 +1,19 @@
-# backend/app/storage/postgres.py
+# File: backend/app/storage/postgres.py
 
+import os
 import json
 from typing import Dict, Any, List
 from sqlalchemy import select, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.storage.base import StorageBackend
-from app.core.database import get_session
+from app.core.database import get_session, Base
 from app.models.report import ReportModel
 
 
 class PostgresStorage(StorageBackend):
     def __init__(self):
-        pass  # No special initialization needed for Postgres.
+        pass
 
     async def save_report(self, report_id: str, report_data: Dict[str, Any]) -> None:
         session: AsyncSession = get_session()
@@ -23,6 +24,7 @@ class PostgresStorage(StorageBackend):
                 id=report_id,
                 artifact=artifact_name,
                 data=serialized_data,
+                # created_at is set automatically by server_default
             )
             session.add(report)
 
@@ -42,9 +44,23 @@ class PostgresStorage(StorageBackend):
     async def list_reports(self, filters: Dict[str, Any] = {}) -> List[Dict[str, Any]]:
         session: AsyncSession = get_session()
         async with session.begin():
-            result = await session.execute(select(ReportModel))
+            result = await session.execute(
+                select(ReportModel).order_by(ReportModel.created_at.desc())
+            )
             reports = result.scalars().all()
-            return [json.loads(r.data) for r in reports if isinstance(r.data, str)]
+            parsed_reports = []
+            for r in reports:
+                if isinstance(r.data, str):
+                    parsed = json.loads(r.data)
+                    # Ensure _meta exists and include timestamp of creation
+                    parsed_meta = parsed.setdefault("_meta", {})
+                    parsed_meta.update({
+                        "id": r.id,
+                        "artifact": r.artifact,
+                        "timestamp": r.created_at.isoformat() if r.created_at else ""
+                    })
+                    parsed_reports.append(parsed)
+            return parsed_reports
 
     async def delete_report(self, report_id: str) -> None:
         session: AsyncSession = get_session()

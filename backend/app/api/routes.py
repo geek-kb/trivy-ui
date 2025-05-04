@@ -9,49 +9,58 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 import pytz
-from fastapi import APIRouter, HTTPException, File, UploadFile, Query, Request
-from fastapi import status, Body
-from sqlalchemy import text
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    File,
+    UploadFile,
+    Query,
+    Request,
+    status,
+    Body,
+)
 
 from app.schemas.report import TrivyReport
 from app.storage.factory import get_storage
-from app.core.database import engine
 from app.core.config import settings
 
-# --- Setup ---
 logger = logging.getLogger(__name__)
 router = APIRouter()
 storage = get_storage()
 
-# --- Constants ---
-MAX_UPLOAD_SIZE = 5 * 1024 * 1024  # 5MB
+MAX_UPLOAD_SIZE = 5 * 1024 * 1024
 ALLOWED_EXTENSIONS = (".json", ".spdx.json", ".cdx.json", ".tar")
 MAX_FILENAME_LENGTH = 100
 UPLOAD_RATE_LIMIT = 10
 _upload_attempts: dict = {}
 
 
-# --- Helper Functions ---
 def now_utc() -> str:
-    """Return current UTC time as ISO8601 string."""
-    return datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
+    utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+    if settings.TIMEZONE:
+        tz = pytz.timezone(settings.TIMEZONE)
+        return utc.astimezone(tz).isoformat()
+    return utc.isoformat()
 
 
 def format_timestamp(ts: str) -> str:
-    """Format UTC ISO string to local timezone formatted string."""
     if not ts:
         return ""
     try:
         dt = datetime.fromisoformat(ts)
+    except ValueError:
+        try:
+            dt = datetime.strptime(ts, "%Y-%m-%dT%H:%M:%S.%fZ")
+        except Exception:
+            return ts
+    try:
         if settings.TIMEZONE:
-            tzinfo = pytz.timezone(settings.TIMEZONE)
-            dt = dt.astimezone(tzinfo)
+            dt = dt.astimezone(pytz.timezone(settings.TIMEZONE))
         else:
             dt = dt.astimezone()
         return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        logger.error(f"Failed to format timestamp: {e}")
-        return ts
+    except Exception:
+        return dt.isoformat()
 
 
 def get_client_ip(request: Request) -> str:
@@ -61,7 +70,7 @@ def get_client_ip(request: Request) -> str:
 def fallback_artifact_name(name: Optional[str], fallback_filename: str) -> str:
     if not name or name.strip() in [".", ""]:
         return fallback_filename
-    return re.sub(r"[^a-zA-Z0-9_\\-\\.]", "_", name.strip()) or fallback_filename
+    return re.sub(r"[^a-zA-Z0-9_\-\.]", "_", name.strip()) or fallback_filename
 
 
 def sanitize_json(data: dict) -> dict:
@@ -70,7 +79,7 @@ def sanitize_json(data: dict) -> dict:
 
 
 def sanitize_filename(filename: str) -> str:
-    return re.sub(r"[^a-zA-Z0-9_\\-\\.]", "_", filename.strip())[:MAX_FILENAME_LENGTH]
+    return re.sub(r"[^a-zA-Z0-9_\-\.]", "_", filename.strip())[:MAX_FILENAME_LENGTH]
 
 
 def rate_limit_check(client_ip: str):
@@ -84,43 +93,14 @@ def rate_limit_check(client_ip: str):
     _upload_attempts[client_ip].append(now)
 
 
-# --- Routes ---
-@router.get("/")
-def root():
-    return {"message": "Trivy UI backend is alive"}
-
-
-@router.get("/health")
-def health_check():
-    return {"status": "ok"}
-
-
-@router.get("/db-health")
-async def db_health_check():
-    if engine is None:
-        return {"database": "not configured (filesystem backend)"}
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        return {"database": "healthy"}
-    except Exception as e:
-        logger.error(f"Database health check failed: {e}")
-        raise HTTPException(status_code=500, detail="Database connection failed")
-
-
 @router.post("/report")
 async def upload_report(report: TrivyReport):
     report_id = str(uuid.uuid4())
     artifact_name = fallback_artifact_name(report.ArtifactName, "artifact-from-api")
     report_dict = report.dict()
-
-    if "_meta" not in report_dict:
-        report_dict["_meta"] = {}
-
-    report_dict["_meta"]["timestamp"] = now_utc()
+    report_dict.setdefault("_meta", {})["timestamp"] = now_utc()
     report_dict["_meta"]["id"] = report_id
     report_dict["ArtifactName"] = artifact_name
-
     await storage.save_report(report_id, report_dict)
     return {"id": report_id, "artifact": artifact_name}
 
@@ -129,17 +109,16 @@ async def upload_report(report: TrivyReport):
 async def upload_report_file(request: Request, file: UploadFile = File(...)):
     client_ip = get_client_ip(request)
     rate_limit_check(client_ip)
+    filename = sanitize_filename(file.filename or "")
 
-    filename = (file.filename or "").strip().lower()
     if not any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS):
         raise HTTPException(
             status_code=400,
             detail=f"Only {', '.join(ALLOWED_EXTENSIONS)} files are accepted",
         )
-    if len(filename) > MAX_UPLOAD_SIZE:
-        raise HTTPException(
-            status_code=413, detail="File too large. Max allowed size is 5MB."
-        )
+
+    if len(filename) > MAX_FILENAME_LENGTH:
+        raise HTTPException(status_code=413, detail="Filename too long.")
 
     contents = await file.read()
     try:
@@ -147,31 +126,18 @@ async def upload_report_file(request: Request, file: UploadFile = File(...)):
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Uploaded file is not valid JSON")
 
-    if (
-        not isinstance(data, dict)
-        or "Results" not in data
-        or not isinstance(data["Results"], list)
+    if not isinstance(data, dict) or "Results" not in data or not isinstance(
+        data["Results"], list
     ):
         raise HTTPException(
             status_code=400, detail="Uploaded JSON must contain 'Results' field as list"
         )
 
     sanitized_data = sanitize_json(data)
-
-    try:
-        report = TrivyReport(**sanitized_data)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid Trivy report format: {e}")
-
+    report = TrivyReport(**sanitized_data)
     report_id = str(uuid.uuid4())
-    artifact_name = fallback_artifact_name(
-        report.ArtifactName, sanitize_filename(filename)
-    )
-
-    if "_meta" not in sanitized_data:
-        sanitized_data["_meta"] = {}
-
-    sanitized_data["_meta"]["timestamp"] = now_utc()
+    artifact_name = fallback_artifact_name(report.ArtifactName, filename)
+    sanitized_data.setdefault("_meta", {})["timestamp"] = now_utc()
     sanitized_data["_meta"]["id"] = report_id
     sanitized_data["ArtifactName"] = artifact_name
 
@@ -198,27 +164,21 @@ async def get_report(
 
     severity_count = defaultdict(int)
     filtered_results = []
-
     for result in report.Results:
         vulns = result.Vulnerabilities or []
         for vuln in vulns:
             severity_count[vuln.Severity.upper()] += 1
 
         def matches_filters(v):
-            if not v.VulnerabilityID.upper().startswith("CVE-"):
-                return False
-            if severity_filter and v.Severity.upper() not in severity_filter:
-                return False
-            if pkg_filter and pkg_filter not in v.PkgName.lower():
-                return False
-            if vuln_filter and vuln_filter not in v.VulnerabilityID.lower():
-                return False
-            return True
+            return (
+                v.VulnerabilityID.upper().startswith("CVE-")
+                and (not severity_filter or v.Severity.upper() in severity_filter)
+                and (not pkg_filter or pkg_filter in v.PkgName.lower())
+                and (not vuln_filter or vuln_filter in v.VulnerabilityID.lower())
+            )
 
         filtered_vulns = [v for v in vulns if matches_filters(v)]
-        filtered_results.append(
-            {"Target": result.Target, "Vulnerabilities": filtered_vulns}
-        )
+        filtered_results.append({"Target": result.Target, "Vulnerabilities": filtered_vulns})
 
     summary = {
         "artifact": report.ArtifactName,
@@ -233,97 +193,62 @@ async def get_report(
         "total": sum(severity_count.values()),
     }
 
-    return {
-        "artifact": report.ArtifactName,
-        "summary": summary,
-        "results": filtered_results,
-    }
+    return {"artifact": report.ArtifactName, "summary": summary, "results": filtered_results}
 
 
 @router.get("/reports")
-async def list_reports(
-    skip: int = 0,
-    limit: int = 20,
-    artifact: Optional[str] = Query(None),
-    min_critical: int = 0,
-    min_high: int = 0,
-    min_medium: int = 0,
-    min_low: int = 0,
-):
+async def list_reports(skip: int = 0, limit: int = 20):
     reports_data = await storage.list_reports()
-    reports_with_meta = []
+    reports = []
 
     for data in reports_data:
         try:
             report = TrivyReport(**data)
-            raw_ts = data.get("_meta", {}).get("timestamp", "")
-            formatted_ts = format_timestamp(raw_ts)
-            report_id = data.get("_meta", {}).get("id")
-            if not report_id:
+            ts = data.get("_meta", {}).get("timestamp", "")
+            rid = data.get("_meta", {}).get("id")
+            if not rid:
                 continue
 
-            severity_count = defaultdict(int)
+            sev = defaultdict(int)
             for result in report.Results:
                 for vuln in result.Vulnerabilities or []:
-                    severity_count[vuln.Severity.upper()] += 1
+                    sev[vuln.Severity.upper()] += 1
 
-            reports_with_meta.append(
+            reports.append(
                 {
-                    "id": report_id,
+                    "id": rid,
                     "artifact": report.ArtifactName,
-                    "timestamp": formatted_ts,
-                    "critical": severity_count.get("CRITICAL", 0),
-                    "high": severity_count.get("HIGH", 0),
-                    "medium": severity_count.get("MEDIUM", 0),
-                    "low": severity_count.get("LOW", 0),
+                    "timestamp": format_timestamp(ts),
+                    "critical": sev["CRITICAL"],
+                    "high": sev["HIGH"],
+                    "medium": sev["MEDIUM"],
+                    "low": sev["LOW"],
                 }
             )
         except Exception as e:
-            logger.warning(f"Skipping invalid report during listing: {e}")
+            logger.warning(f"Invalid report skipped: {e}")
 
-    def passes_filters(r):
-        if artifact and artifact.lower() not in r["artifact"].lower():
-            return False
-        if r["critical"] < min_critical:
-            return False
-        if r["high"] < min_high:
-            return False
-        if r["medium"] < min_medium:
-            return False
-        if r["low"] < min_low:
-            return False
-        return True
-
-    filtered = list(filter(passes_filters, reports_with_meta))
-    sorted_reports = sorted(
-        filtered, key=lambda r: r.get("timestamp", ""), reverse=True
-    )
-    paginated = sorted_reports[skip : skip + limit]
-
+    reports.sort(key=lambda r: r["timestamp"], reverse=True)
     return {
-        "total": len(filtered),
+        "total": len(reports),
         "skip": skip,
         "limit": limit,
-        "results": paginated,
+        "results": reports[skip : skip + limit],
     }
 
 
 @router.delete("/reports")
 async def delete_reports(request: Request, body: dict = Body(...)):
-    report_ids: List[str] = body.get("report_ids", [])
-    if not isinstance(report_ids, list) or not all(
-        isinstance(rid, str) for rid in report_ids
-    ):
+    ids: List[str] = body.get("report_ids", [])
+    if not isinstance(ids, list) or not all(isinstance(rid, str) for rid in ids):
         raise HTTPException(status_code=400, detail="Invalid report_ids payload")
-
     deleted = 0
-    for report_id in report_ids:
+    for rid in ids:
         try:
-            await storage.delete_report(report_id)
+            await storage.delete_report(rid)
             deleted += 1
         except FileNotFoundError:
-            continue  # It's okay if some reports were already missing
-
+            continue
     return {"deleted": deleted}
 
 
@@ -331,9 +256,6 @@ async def delete_reports(request: Request, body: dict = Body(...)):
 async def metrics():
     try:
         total = await storage.count_reports()
+        return {"reports_count": total}
     except Exception as e:
-        import traceback
-
-        traceback.print_exc()
         return {"error": str(e)}
-    return {"reports_count": total}

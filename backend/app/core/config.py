@@ -10,12 +10,11 @@ env_path = Path(__file__).parent.parent.parent / ".env"
 if env_path.exists():
     load_dotenv(env_path)
 
-
 class Settings(BaseSettings):
     ENV: str = "development"
     UVICORN_HOST: str = "0.0.0.0"
     UVICORN_PORT: int = 8000
-    DB_BACKEND: str = "filesystem"  # filesystem, sqlite, postgres
+    DB_BACKEND: str = ""  # filesystem, sqlite, postgres
     FILESYSTEM_STORAGE_DIR: str = "backend/app/storage/reports"
     SQLITE_PATH: str = "backend/trivy_ui.db"
     POSTGRES_URL: str = ""
@@ -23,7 +22,6 @@ class Settings(BaseSettings):
 
     class Config:
         extra = "ignore"  # Allow extra env vars without throwing validation errors
-
 
 # Initialize settings
 settings = Settings()

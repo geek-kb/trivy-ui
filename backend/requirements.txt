@@ -6,7 +6,7 @@ rich
 PyYAML
 python-multipart
 slowapi
-pydantic_settings
+pydantic-settings
 pytz
 
 # Database support

@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: reports-pv
+  name: postgres-pv
 spec:
   capacity:
     storage: 1Gi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   hostPath:
-    path: /Users/itaig/src/trivy-ui/backend/app/storage/reports
+    path: /Users/itaig/src/trivy-ui/backend/app/postgres/data
   storageClassName: standard

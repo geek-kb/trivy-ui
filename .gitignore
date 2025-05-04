@@ -25,6 +25,12 @@ venv/
 .venv/
 backend/__pycache__/
 backend/storage/
+backend/app/postgres/
+
+# ------------------------------
+# Kubernetes
+# ------------------------------
+k8s/postgres/psql_secrets.yaml
 
 # ------------------------------
 # Environment and Secrets

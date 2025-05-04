@@ -1,8 +1,9 @@
-import {useEffect, useState, useCallback} from "react";
-import {useSearchParams} from "react-router-dom";
+// File: frontend/src/components/ReportsList.tsx
+
+import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
 
-// Types
 interface ReportSummary {
   id: string;
   artifact: string;
@@ -59,9 +60,8 @@ export default function ReportsList() {
   };
 
   const filtered = reports.filter((r) =>
-    r.artifact.toLowerCase().includes(artifactInput.toLowerCase()),
+    r.artifact.toLowerCase().includes(artifactInput.toLowerCase())
   );
-
   const sorted = [...filtered].sort((a, b) => {
     const A = a[sortField];
     const B = b[sortField];
@@ -72,7 +72,6 @@ export default function ReportsList() {
       ? String(A).localeCompare(String(B))
       : String(B).localeCompare(String(A));
   });
-
   const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
   const totalPages = Math.max(Math.ceil(sorted.length / pageSize), 1);
 
@@ -83,7 +82,6 @@ export default function ReportsList() {
       return next;
     });
   };
-
   const toggleAll = () => {
     const allIds = paginated.map((r) => r.id);
     const hasAll = allIds.every((id) => selected.has(id));
@@ -96,20 +94,15 @@ export default function ReportsList() {
     try {
       const res = await fetch("/api/reports", {
         method: "DELETE",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({report_ids: Array.from(selected)}),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ report_ids: Array.from(selected) }),
       });
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Unknown error occurred");
-      }
-      await fetchReports(); // refresh reports after successful delete
+      if (!res.ok) throw new Error(await res.text() || "Unknown error");
+      await fetchReports();
       setSelected(new Set());
     } catch (e: any) {
       console.error("Delete error:", e);
-      alert(
-        `Failed to delete selected reports: ${e.message || "Unknown error"}`,
-      );
+      alert(`Failed to delete selected reports: ${e.message}`);
     }
   };
 
@@ -118,10 +111,10 @@ export default function ReportsList() {
       sev === "critical"
         ? "bg-red-600 text-white"
         : sev === "high"
-          ? "bg-orange-500 text-white"
-          : sev === "medium"
-            ? "bg-yellow-400 text-black"
-            : "bg-blue-400 text-white";
+        ? "bg-orange-500 text-white"
+        : sev === "medium"
+        ? "bg-yellow-400 text-black"
+        : "bg-blue-400 text-white";
     return (
       <span
         className={`inline-block min-w-[32px] px-1.5 py-0.5 rounded text-xs font-bold ${base}`}
@@ -147,7 +140,6 @@ export default function ReportsList() {
 
   return (
     <section className="mt-10 space-y-6">
-      {/* Filters */}
       <div className="flex flex-col md:flex-row gap-4">
         <input
           type="text"
@@ -158,28 +150,30 @@ export default function ReportsList() {
             searchParams.set("page", "1");
             setSearchParams(searchParams);
           }}
-          className="border px-3 py-2 rounded flex-1 text-black"
+          // Light mode: black text on white bg; Dark mode: white text on dark bg
+          className="border px-3 py-2 rounded flex-1 text-black bg-white dark:text-white dark:bg-gray-800"
         />
       </div>
 
-      {/* Delete Button */}
       {reports.length > 0 && (
         <button
           onClick={deleteSelected}
           disabled={selected.size === 0}
-          className="px-4 py-2 bg-red-600 text-white rounded disabled:opacity-50"
+          className="px-4 py-2 bg-red-600 text-white dark:text-white rounded disabled:opacity-50"
         >
           Delete Selected ({selected.size})
         </button>
       )}
 
-      {/* Table */}
       {reports.length === 0 ? (
         <p className="text-center text-gray-400">No reports found.</p>
       ) : (
         <div className="overflow-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
-          <table className="min-w-full divide-y divide-gray-700 text-sm text-white">
-            <thead className="bg-gray-800">
+          <table className="min-w-full divide-y divide-gray-700 text-sm">
+            <thead
+              // Light mode header bg; Dark mode header darker bg
+              className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
+            >
               <tr>
                 <th className="px-4 py-2 text-center font-bold">
                   <input
@@ -192,16 +186,18 @@ export default function ReportsList() {
                   />
                 </th>
                 {[
-                  {label: "Artifact", field: "artifact"},
-                  {label: "Timestamp", field: "timestamp"},
-                  {label: "Critical", field: "critical"},
-                  {label: "High", field: "high"},
-                  {label: "Medium", field: "medium"},
-                  {label: "Low", field: "low"},
+                  { label: "Artifact", field: "artifact" },
+                  { label: "Timestamp", field: "timestamp" },
+                  { label: "Critical", field: "critical" },
+                  { label: "High", field: "high" },
+                  { label: "Medium", field: "medium" },
+                  { label: "Low", field: "low" },
                 ].map((col) => (
                   <th
                     key={col.field}
-                    onClick={() => handleSort(col.field as keyof ReportSummary)}
+                    onClick={() =>
+                      handleSort(col.field as keyof ReportSummary)
+                    }
                     className={`px-4 py-2 cursor-pointer font-bold ${
                       ["artifact", "timestamp"].includes(col.field)
                         ? "text-left"
@@ -209,14 +205,18 @@ export default function ReportsList() {
                     }`}
                   >
                     {col.label}{" "}
-                    {sortField === col.field && (sortDir === "asc" ? "↑" : "↓")}
+                    {sortField === col.field &&
+                      (sortDir === "asc" ? "↑" : "↓")}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {paginated.map((r) => (
-                <tr key={r.id} className="hover:bg-gray-700">
+                <tr
+                  key={r.id}
+                  className="hover:bg-gray-200 dark:hover:bg-gray-700"
+                >
                   <td className="px-4 py-2 text-center">
                     <input
                       type="checkbox"
@@ -227,7 +227,7 @@ export default function ReportsList() {
                   <td className="px-4 py-2">
                     <a
                       href={`/report/${r.id}`}
-                      className="text-blue-400 hover:underline"
+                      className="text-blue-600 dark:text-blue-300 hover:underline"
                     >
                       {r.artifact}
                     </a>
@@ -252,11 +252,12 @@ export default function ReportsList() {
         </div>
       )}
 
-      {/* Pagination */}
       {reports.length > 0 && (
-        <div className="flex justify-between items-center mt-4 text-white">
+        <div className="flex justify-between items-center mt-4">
           <div>
-            <span>Rows per page:</span>
+            <span className="text-gray-900 dark:text-white">
+              Rows per page:
+            </span>
             <select
               value={pageSize}
               onChange={(e) => {
@@ -264,7 +265,8 @@ export default function ReportsList() {
                 searchParams.set("page", "1");
                 setSearchParams(searchParams);
               }}
-              className="ml-2 border rounded p-1 text-black"
+              // Light mode: black text; Dark mode: white text
+              className="ml-2 border rounded p-1 text-black dark:text-white bg-white dark:bg-gray-800"
             >
               {[10, 25, 50, 100].map((n) => (
                 <option key={n} value={n}>
@@ -281,11 +283,11 @@ export default function ReportsList() {
                 setSearchParams(searchParams);
               }}
               disabled={page <= 1}
-              className="px-3 py-1 border rounded disabled:opacity-50"
+              className="px-3 py-1 border rounded disabled:opacity-50 text-gray-900 dark:text-white"
             >
               Previous
             </button>
-            <span>
+            <span className="text-gray-900 dark:text-white">
               Page {page} of {totalPages}
             </span>
             <button
@@ -296,7 +298,7 @@ export default function ReportsList() {
                 }
               }}
               disabled={page >= totalPages}
-              className="px-3 py-1 border rounded disabled:opacity-50"
+              className="px-3 py-1 border rounded disabled:opacity-50 text-gray-900 dark:text-white"
             >
               Next
             </button>

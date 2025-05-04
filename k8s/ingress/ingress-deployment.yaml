@@ -1,0 +1,36 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: 100m
+    nginx.ingress.kubernetes.io/use-regex: "true"
+  creationTimestamp: "2025-05-04T08:26:57Z"
+  generation: 1
+  name: trivy-ui-ingress
+  namespace: trivy-ui
+  resourceVersion: "919359"
+  uid: 57682123-5089-4fa3-8df6-1876db323d72
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: trivy-ui.local
+    http:
+      paths:
+      - backend:
+          service:
+            name: trivy-ui-backend
+            port:
+              number: 8000
+        path: /api(/|$)(.*)
+        pathType: ImplementationSpecific
+      - backend:
+          service:
+            name: trivy-ui-frontend
+            port:
+              number: 80
+        path: /(.*)
+        pathType: ImplementationSpecific
+status:
+  loadBalancer:
+    ingress:
+    - hostname: localhost

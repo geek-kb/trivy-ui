@@ -1,0 +1,32 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: init-trivy-db
+  namespace: trivy-ui
+spec:
+  template:
+    spec:
+      containers:
+        - name: db-init
+          image: camelel/trivy-ui-backend:latest
+          command: ["sh"]
+          args:
+            - "-c"
+            - |
+              env | grep -i "postg\|db"
+              apt update && apt install -y netcat-traditional
+              echo "Waiting for PostgreSQL to become available..."
+              until nc -z "$POSTGRES_HOST" 5432; do
+                echo "Still waiting for $POSTGRES_HOST:5432..."
+                sleep 2
+              done
+              echo "PostgreSQL is up, running schema init"
+              export POSTGRES_URL="$POSTGRES_URL"
+              python scripts/postgres_init_schema.py
+          env:
+            - name: POSTGRES_URL
+              valueFrom:
+                secretKeyRef:
+                  name: postgres
+                  key: DB_URL
+      restartPolicy: OnFailure

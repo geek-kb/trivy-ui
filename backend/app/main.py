@@ -1,9 +1,12 @@
+# File: backend/app/main.py
+
 import os
 import logging
 import logging.config
 import yaml
-
 from dotenv import load_dotenv
+import asyncio
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -12,18 +15,22 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.responses import JSONResponse, Response
 from typing import Callable, Awaitable, cast
+from urllib.parse import quote_plus
+
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.api.routes import router
-from app.core.database import init_db_engine, engine
+from app.core.database import init_db_engine, get_cluster_domain
 from app.models.report import Base
 from app.core import exception_handlers
+from app.core.config import settings, DB_BACKEND
+from app.storage.factory import get_storage
 
 # --- Load Environment Variables ---
 load_dotenv()
 
 # --- Setup Logging ---
 LOGGING_CONFIG_PATH = "./logging.yaml"
-
 if os.path.exists(LOGGING_CONFIG_PATH):
     try:
         with open(LOGGING_CONFIG_PATH, "r") as f:
@@ -33,9 +40,7 @@ if os.path.exists(LOGGING_CONFIG_PATH):
         print(f"Failed to load logging config: {e}")
 
 logger = logging.getLogger("app")
-
-# --- Detect Environment ---
-ENVIRONMENT = os.getenv("ENV", "production").lower()
+ENVIRONMENT = settings.ENV.lower()
 
 # --- Initialize FastAPI ---
 app = FastAPI(
@@ -44,24 +49,56 @@ app = FastAPI(
     version="0.1.0",
 )
 
-# --- Add Middleware ---
+# --- Middleware ---
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 
 # --- Initialize DB Engine ---
 init_db_engine()
 
-
-# --- App Startup Hook ---
 @app.on_event("startup")
 async def on_startup():
-    if engine is not None:
-        logger.info("Running database initialization...")
-        async with engine.begin() as conn:
+    logger.info("Attempting database initialization...")
+    try:
+        user = os.getenv("DB_APP_USER")
+        raw_password = os.getenv("DB_APP_PASSWORD")
+        namespace = os.getenv("POD_NAMESPACE", "default")
+        db = os.getenv("POSTGRES_DB")
+
+        if not all([user, raw_password, db]):
+            raise ValueError("Missing DB_APP_USER, DB_APP_PASSWORD, POSTGRES_DB")
+
+        host = f"postgres.{namespace}.svc.{get_cluster_domain()}"
+        password = quote_plus(str(raw_password))
+        db_url = f"postgresql+asyncpg://{user}:{password}@{host}:5432/{db}"
+
+        print(f"Connecting to database at {db_url}")
+        tmp_engine = create_async_engine(db_url, echo=False, future=True)
+
+        async with tmp_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+        await tmp_engine.dispose()
+        logger.info("Database initialized successfully.")
+    except Exception as e:
+        logger.warning(f"Skipping DB init due to error: {e}")
 
-# --- Register Exception Handlers ---
+@app.get("/healthz")
+async def healthz():
+    backend = DB_BACKEND  # from config alias, lowercased
+    try:
+        storage = get_storage()
+        if backend == "filesystem":
+            return {"app": "alive", "database": "filesystem", "backend": backend}
+        elif backend in ("postgres", "sqlite"):
+            await storage.count_reports()
+            return {"app": "alive", "database": "ok", "backend": backend}
+        else:
+            return {"app": "alive", "database": f"unrecognized backend: {backend}", "backend": backend}
+    except Exception as e:
+        return {"app": "alive", "database": f"unhealthy ({backend})", "error": str(e), "backend": backend}
+
+# --- Exception Handlers ---
 app.add_exception_handler(
     StarletteHTTPException,
     cast(
@@ -83,7 +120,8 @@ app.add_exception_handler(
         exception_handlers.generic_exception_handler,
     ),
 )
-# --- Configure CORS ---
+
+# --- CORS ---
 if ENVIRONMENT == "development":
     logger.info("Running in development mode with open CORS policy")
     app.add_middleware(
@@ -95,8 +133,8 @@ if ENVIRONMENT == "development":
     )
 else:
     allowed_origins = [
-        "http://trivy-ui.trivy-ui.svc.cluster.local",
-        "https://trivy-ui.trivy-ui.svc.cluster.local",
+        "http://frontend.trivy-ui.svc.cluster.local",
+        "https://frontend.trivy-ui.svc.cluster.local",
     ]
     logger.info(f"Running in production mode. Allowed origins: {allowed_origins}")
     app.add_middleware(
@@ -107,24 +145,4 @@ else:
         allow_headers=["Authorization", "Content-Type"],
     )
 
-# --- Include API Router ---
 app.include_router(router, prefix="/api")
-
-
-# --- Health Check Endpoint ---
-@app.get("/")
-async def root_status():
-    logger.info("Health check on / endpoint")
-    return {"message": "Trivy UI backend is running"}
-
-
-# --- Optional Uvicorn Run ---
-if __name__ == "__main__":
-    import uvicorn
-
-    uvicorn.run(
-        "app.main:app",
-        host=os.getenv("UVICORN_HOST", "0.0.0.0"),
-        port=int(os.getenv("UVICORN_PORT", 8000)),
-        reload=(ENVIRONMENT == "development"),
-    )

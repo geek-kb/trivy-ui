@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: "2025-04-23T09:25:14Z"
+  labels:
+    app: postgres
+  name: postgres
+  namespace: trivy-ui
+  resourceVersion: "71567"
+  uid: a54bc632-57aa-44ec-bfd0-e5314c10c0d3
+spec:
+  clusterIP: 10.97.76.160
+  clusterIPs:
+  - 10.97.76.160
+  internalTrafficPolicy: Cluster
+  ipFamilies:
+  - IPv4
+  ipFamilyPolicy: SingleStack
+  ports:
+  - port: 5432
+    protocol: TCP
+    targetPort: 5432
+  selector:
+    app: postgres
+  sessionAffinity: None
+  type: ClusterIP
+status:
+  loadBalancer: {}
