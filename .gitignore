@@ -44,6 +44,7 @@ OPENAI_KEY
 YELP_APIKEY
 backend/.env
 .env.production
+k8s/postgres/psql_secret.yaml
 
 # ------------------------------
 # VSCode / JetBrains IDEs

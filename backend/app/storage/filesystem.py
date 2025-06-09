@@ -9,6 +9,7 @@ import json
 
 class FilesystemStorage(StorageBackend):
     def __init__(self):
+        # Always store reports under the `app/storage/reports` directory
         self.reports_dir = Path(__file__).parent / "reports"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
 
@@ -31,8 +32,8 @@ class FilesystemStorage(StorageBackend):
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     reports.append(json.load(f))
-            except Exception as e:
-                print(f"Skipping invalid file {path.name}: {e}")
+            except Exception:
+                continue
         return reports
 
     async def delete_report(self, report_id: str) -> None:
@@ -50,6 +51,5 @@ class FilesystemStorage(StorageBackend):
                     and name.endswith(".json")
                 ]
             )
-        except Exception as e:
-            print(f"Failed to count reports: {e}")
+        except Exception:
             return 0

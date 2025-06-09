@@ -1,34 +1,42 @@
 # File: backend/app/core/config.py
 
 import os
-from dotenv import load_dotenv
-from pathlib import Path
+from typing import Optional, List
 from pydantic_settings import BaseSettings
 
-# Load environment variables from .env file first
-env_path = Path(__file__).parent.parent.parent / ".env"
-if env_path.exists():
-    load_dotenv(env_path)
 
 class Settings(BaseSettings):
-    ENV: str = "development"
-    UVICORN_HOST: str = "0.0.0.0"
-    UVICORN_PORT: int = 8000
-    DB_BACKEND: str = ""  # filesystem, sqlite, postgres
-    FILESYSTEM_STORAGE_DIR: str = "backend/app/storage/reports"
-    SQLITE_PATH: str = "backend/trivy_ui.db"
-    POSTGRES_URL: str = ""
-    TIMEZONE: str = ""
+    # Environment settings
+    ENV: str = os.getenv("ENV", "development")
+    DEBUG: bool = os.getenv("DEBUG", "").lower() == "true"
+
+    # API settings
+    API_V1_STR: str = "/api"
+    PROJECT_NAME: str = "trivy-ui"
+
+    # CORS settings
+    CORS_ORIGINS: List[str] = ["*"]
+
+    # Storage settings
+    DB_BACKEND: str = os.getenv("DB_BACKEND", "filesystem")
+
+    # PostgreSQL settings (only used if DB_BACKEND is "postgres")
+    POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres")
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "trivy")
+    POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
+
+    # Optional timezone setting
+    TIMEZONE: Optional[str] = os.getenv("TIMEZONE")
 
     class Config:
-        extra = "ignore"  # Allow extra env vars without throwing validation errors
+        case_sensitive = True
 
-# Initialize settings
+
 settings = Settings()
 
-# Shortcut variables for easier imports elsewhere
-DB_BACKEND = settings.DB_BACKEND.lower()
-FILESYSTEM_REPORTS_DIR = Path(settings.FILESYSTEM_STORAGE_DIR)
-SQLITE_PATH = settings.SQLITE_PATH
-POSTGRES_URL = settings.POSTGRES_URL
-TIMEZONE = settings.TIMEZONE
+
+def get_settings() -> Settings:
+    """Return the settings instance."""
+    return settings

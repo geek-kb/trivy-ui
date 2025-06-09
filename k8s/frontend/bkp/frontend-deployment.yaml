@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: trivy-ui-frontend
-          image: camelel/trivy-ui-frontend:latest
+          image: host.docker.internal:5001/trivy-ui-frontend:latest
           imagePullPolicy: Always
           env:
             - name: POSTGRES_DB

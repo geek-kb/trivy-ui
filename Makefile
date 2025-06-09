@@ -1,38 +1,36 @@
-
-# File: Makefile
-
 NAMESPACE=trivy-ui
 K8S_DIR=trivy-ui/k8s/postgres
 DOCKER_REPO=camelel
+#DOCKER_REPO=host.docker.internal:5001
+
 
 build-backend:
-	docker build -t trivy-ui-backend:latest -f backend/Dockerfile backend
+	docker build --no-cache -t $(DOCKER_REPO)/trivy-ui-backend:latest -f backend/Dockerfile backend
 
 build-frontend:
-	docker build -t trivy-ui-frontend:latest -f frontend/Dockerfile frontend
+	docker build -t $(DOCKER_REPO)/trivy-ui-frontend:latest -f frontend/Dockerfile frontend
 
 build-all:
-	docker build -t trivy-ui-backend:latest -f backend/Dockerfile backend
-	docker build -t trivy-ui-frontend:latest -f frontend/Dockerfile frontend
+	docker build -t $(DOCKER_REPO)/trivy-ui-backend:latest -f backend/Dockerfile backend
+	docker build -t $(DOCKER_REPO)/trivy-ui-frontend:latest -f frontend/Dockerfile frontend
+
+push-all:
+	docker push $(DOCKER_REPO)/trivy-ui-backend:latest
+	docker push $(DOCKER_REPO)/trivy-ui-frontend:latest
 
 push-backend:
-	docker tag trivy-ui-backend:latest $(DOCKER_REPO)/trivy-ui-backend:latest
+#	docker tag trivy-ui-backend:latest $(DOCKER_REPO)/trivy-ui-backend:latest
+	docker push $(DOCKER_REPO)/trivy-ui-backend:latest
+# Push targets
+push-backend:
 	docker push $(DOCKER_REPO)/trivy-ui-backend:latest
 
 push-frontend:
-	docker tag trivy-ui-frontend:latest $(DOCKER_REPO)/trivy-ui-frontend:latest
 	docker push $(DOCKER_REPO)/trivy-ui-frontend:latest
 
 push-all:
-	docker tag trivy-ui-backend:latest $(DOCKER_REPO)/trivy-ui-backend:latest
 	docker push $(DOCKER_REPO)/trivy-ui-backend:latest
-	docker tag trivy-ui-frontend:latest $(DOCKER_REPO)/trivy-ui-frontend:latest
 	docker push $(DOCKER_REPO)/trivy-ui-frontend:latest
-
-# Deploy raw postgres stack
-deploy-db:
-#	kubectl apply -f $(K8S_DIR)/psql_pv.yaml -n $(NAMESPACE)
-#	kubectl apply -f $(K8S_DIR)/psql_pvc.yaml -n $(NAMESPACE)
 #	kubectl apply -f $(K8S_DIR)/psql_secret.yaml -n $(NAMESPACE)
 	kubectl apply -f $(K8S_DIR)/psql_configmap.yaml -n $(NAMESPACE)
 	kubectl apply -f $(K8S_DIR)/psql_deployment.yaml -n $(NAMESPACE)
