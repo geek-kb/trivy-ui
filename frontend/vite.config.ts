@@ -1,14 +1,14 @@
-import { defineConfig } from "vite";
+import {defineConfig} from "vite";
 import react from "@vitejs/plugin-react";
-import { resolve } from "path";
+import {resolve} from "path";
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  
+
   // Base public path
   base: "/",
-  
+
   // Build options
   build: {
     target: "esnext",
@@ -19,12 +19,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          vendor: ["react", "react-dom", "react-router-dom"],
         },
       },
     },
     // Minification options
-    minify: 'terser',
+    minify: "terser",
     terserOptions: {
       compress: {
         drop_console: true,
@@ -36,13 +36,6 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
-    proxy: {
-      "/api": {
-        target: "http://backend:8000",
-        changeOrigin: true,
-        secure: false,
-      },
-    },
     cors: true,
     hmr: {
       overlay: true,
@@ -52,23 +45,23 @@ export default defineConfig({
   // Resolve aliases
   resolve: {
     alias: {
-      '@': resolve(__dirname, './src'),
-      '@components': resolve(__dirname, './src/components'),
-      '@hooks': resolve(__dirname, './src/hooks'),
-      '@utils': resolve(__dirname, './src/utils'),
+      "@": resolve(__dirname, "./src"),
+      "@components": resolve(__dirname, "./src/components"),
+      "@hooks": resolve(__dirname, "./src/hooks"),
+      "@utils": resolve(__dirname, "./src/utils"),
     },
   },
 
   // CSS options
   css: {
     modules: {
-      localsConvention: 'camelCase',
+      localsConvention: "camelCase",
     },
     devSourcemap: true,
   },
 
   // Optimization options
   optimizeDeps: {
-    include: ['react', 'react-dom', 'react-router-dom'],
+    include: ["react", "react-dom", "react-router-dom"],
   },
 });

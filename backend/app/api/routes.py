@@ -18,6 +18,7 @@ import pytz
 
 from app.schemas.report import TrivyReport
 from app.storage.factory import get_storage
+from app.core.config import get_settings
 from app.core.config import settings
 from app.core.logging import logger
 
@@ -283,3 +284,36 @@ async def metrics():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
     return {"reports_count": total}
+
+
+@router.get("/config", summary="Get system configuration")
+async def get_config():
+    """Return the current configuration settings (excluding sensitive data)."""
+    settings = get_settings()
+    config_dict = settings.dict()
+
+    return {
+        "environment": {
+            "env": config_dict["ENV"],
+            "debug": config_dict["DEBUG"],
+            "timezone": config_dict["TIMEZONE"],
+        },
+        "api": {
+            "version": config_dict["API_V1_STR"],
+            "project_name": config_dict["PROJECT_NAME"],
+            "cors_origins": config_dict["CORS_ORIGINS"],
+        },
+        "storage": {
+            "backend": config_dict["DB_BACKEND"],
+            "database": (
+                {
+                    "server": config_dict["POSTGRES_SERVER"],
+                    "port": config_dict["POSTGRES_PORT"],
+                    "user": config_dict["POSTGRES_USER"],
+                    "database": config_dict["POSTGRES_DB"],
+                }
+                if config_dict["DB_BACKEND"] == "postgres"
+                else None
+            ),
+        },
+    }

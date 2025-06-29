@@ -99,6 +99,7 @@ export default function UploadForm({
         toast.error("❌ No ID returned.");
       } else {
         toast.success("✅ Upload successful!");
+        window.dispatchEvent(new Event("reports:refresh"));
         onUploadSuccess
           ? onUploadSuccess()
           : setTimeout(() => window.location.reload(), 1500);

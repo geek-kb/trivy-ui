@@ -135,7 +135,7 @@ def create_app() -> FastAPI:
         generic_exception_handler,  # type: ignore[arg-type]
     )
     # Include routers
-    app.include_router(router, prefix="/api")
+    app.include_router(router, prefix="/api", tags=["system"])
 
     # Log configuration
     logger.info(f"Running with DB_BACKEND={settings.DB_BACKEND}")

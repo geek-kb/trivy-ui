@@ -1,7 +1,7 @@
 // File: frontend/src/components/ReportsList.tsx
 
-import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import {useEffect, useState, useCallback} from "react";
+import {useSearchParams} from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
 
 interface ReportSummary {
@@ -60,7 +60,7 @@ export default function ReportsList() {
   };
 
   const filtered = reports.filter((r) =>
-    r.artifact.toLowerCase().includes(artifactInput.toLowerCase())
+    r.artifact.toLowerCase().includes(artifactInput.toLowerCase()),
   );
   const sorted = [...filtered].sort((a, b) => {
     const A = a[sortField];
@@ -94,10 +94,10 @@ export default function ReportsList() {
     try {
       const res = await fetch("/api/reports", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ report_ids: Array.from(selected) }),
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({report_ids: Array.from(selected)}),
       });
-      if (!res.ok) throw new Error(await res.text() || "Unknown error");
+      if (!res.ok) throw new Error((await res.text()) || "Unknown error");
       await fetchReports();
       setSelected(new Set());
     } catch (e: any) {
@@ -111,10 +111,10 @@ export default function ReportsList() {
       sev === "critical"
         ? "bg-red-600 text-white"
         : sev === "high"
-        ? "bg-orange-500 text-white"
-        : sev === "medium"
-        ? "bg-yellow-400 text-black"
-        : "bg-blue-400 text-white";
+          ? "bg-orange-500 text-white"
+          : sev === "medium"
+            ? "bg-yellow-400 text-black"
+            : "bg-blue-400 text-white";
     return (
       <span
         className={`inline-block min-w-[32px] px-1.5 py-0.5 rounded text-xs font-bold ${base}`}
@@ -186,18 +186,16 @@ export default function ReportsList() {
                   />
                 </th>
                 {[
-                  { label: "Artifact", field: "artifact" },
-                  { label: "Timestamp", field: "timestamp" },
-                  { label: "Critical", field: "critical" },
-                  { label: "High", field: "high" },
-                  { label: "Medium", field: "medium" },
-                  { label: "Low", field: "low" },
+                  {label: "Artifact", field: "artifact"},
+                  {label: "Timestamp", field: "timestamp"},
+                  {label: "Critical", field: "critical"},
+                  {label: "High", field: "high"},
+                  {label: "Medium", field: "medium"},
+                  {label: "Low", field: "low"},
                 ].map((col) => (
                   <th
                     key={col.field}
-                    onClick={() =>
-                      handleSort(col.field as keyof ReportSummary)
-                    }
+                    onClick={() => handleSort(col.field as keyof ReportSummary)}
                     className={`px-4 py-2 cursor-pointer font-bold ${
                       ["artifact", "timestamp"].includes(col.field)
                         ? "text-left"
@@ -205,8 +203,7 @@ export default function ReportsList() {
                     }`}
                   >
                     {col.label}{" "}
-                    {sortField === col.field &&
-                      (sortDir === "asc" ? "↑" : "↓")}
+                    {sortField === col.field && (sortDir === "asc" ? "↑" : "↓")}
                   </th>
                 ))}
               </tr>
@@ -226,7 +223,7 @@ export default function ReportsList() {
                   </td>
                   <td className="px-4 py-2">
                     <a
-                      href={`/report/${r.id}`}
+                      href={`/api/report/${r.id}`}
                       className="text-blue-600 dark:text-blue-300 hover:underline"
                     >
                       {r.artifact}
