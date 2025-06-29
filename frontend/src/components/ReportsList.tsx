@@ -1,7 +1,7 @@
 // File: frontend/src/components/ReportsList.tsx
 
 import {useEffect, useState, useCallback} from "react";
-import {useSearchParams} from "react-router-dom";
+import {useSearchParams, Link} from "react-router-dom";
 import LoadingSpinner from "./LoadingSpinner";
 
 interface ReportSummary {
@@ -47,15 +47,22 @@ export default function ReportsList() {
       console.log("Raw backend data:", raw);
 
       const normalized = Array.isArray(raw)
-        ? raw.map((r) => ({
-            id: r.UID || r.ID || r.id || "unknown-id",
-            artifact: r.ArtifactName || r.artifact || "unknown",
-            timestamp: r.CreatedAt || r.timestamp || "",
-            critical: countSeverities(r, "CRITICAL"),
-            high: countSeverities(r, "HIGH"),
-            medium: countSeverities(r, "MEDIUM"),
-            low: countSeverities(r, "LOW"),
-          }))
+        ? raw
+            .filter((r) => typeof r?._meta?.id === "string")
+            .map((r) => ({
+              id: r._meta.id,
+              artifact: r.ArtifactName || r.artifact || "unknown",
+              timestamp:
+                r._meta?.uploaded_at ||
+                r.UploadedAt ||
+                r.timestamp ||
+                r.CreatedAt ||
+                "",
+              critical: countSeverities(r, "CRITICAL"),
+              high: countSeverities(r, "HIGH"),
+              medium: countSeverities(r, "MEDIUM"),
+              low: countSeverities(r, "LOW"),
+            }))
         : [];
 
       console.log("Normalized reports:", normalized);
@@ -114,13 +121,21 @@ export default function ReportsList() {
   };
 
   const deleteSelected = async () => {
-    if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} reports?`)) return;
+    const ids = Array.from(selected).filter(
+      (id) => typeof id === "string" && id.length > 0,
+    );
+    if (ids.length === 0) return;
+    if (
+      !confirm(
+        `Delete ${paginated.filter((r) => selected.has(r.id)).length} reports?`,
+      )
+    )
+      return;
     try {
       const res = await fetch("/api/reports", {
         method: "DELETE",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({report_ids: Array.from(selected)}),
+        body: JSON.stringify({report_ids: ids}),
       });
       if (!res.ok) throw new Error((await res.text()) || "Unknown error");
       await fetchReports();
@@ -185,7 +200,7 @@ export default function ReportsList() {
           disabled={selected.size === 0}
           className="px-4 py-2 bg-red-600 text-white dark:text-white rounded disabled:opacity-50"
         >
-          Delete Selected ({selected.size})
+          Delete Selected ({paginated.filter((r) => selected.has(r.id)).length})
         </button>
       )}
 
@@ -243,12 +258,12 @@ export default function ReportsList() {
                     />
                   </td>
                   <td className="px-4 py-2">
-                    <a
-                      href={`/api/report/${r.id}`}
+                    <Link
+                      to={`/report/${r.id}`}
                       className="text-blue-600 dark:text-blue-300 hover:underline"
                     >
                       {r.artifact}
-                    </a>
+                    </Link>
                   </td>
                   <td className="px-4 py-2">{r.timestamp}</td>
                   <td className="px-4 py-2 text-center">

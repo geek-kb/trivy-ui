@@ -153,77 +153,76 @@ export default function ReportDetail() {
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-4">{data.artifact}</h1>
 
-      <div className="w-full h-72 mb-6">
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie
-              data={summaryData}
-              dataKey="value"
-              nameKey="name"
-              cx="50%"
-              cy="50%"
-              outerRadius={100}
-              label={({cx, cy, midAngle, outerRadius, index, value}) => {
-                if (index === undefined || !summaryData[index]) return null;
-                const severity = summaryData[index].name;
+      {summaryData.reduce((acc, cur) => acc + cur.value, 0) > 0 ? (
+        <div className="w-full h-72 mb-6">
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={summaryData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                label={({cx, cy, midAngle, outerRadius, index, value}) => {
+                  if (index === undefined || !summaryData[index]) return null;
+                  const severity = summaryData[index].name;
 
-                const RADIAN = Math.PI / 180;
-                const radius = outerRadius + 20;
-                const angle = midAngle;
-                const x = cx + radius * Math.cos(-angle * RADIAN);
-                const y = cy + radius * Math.sin(-angle * RADIAN);
+                  const RADIAN = Math.PI / 180;
+                  const radius = outerRadius + 20;
+                  const angle = midAngle;
+                  const x = cx + radius * Math.cos(-angle * RADIAN);
+                  const y = cy + radius * Math.sin(-angle * RADIAN);
 
-                let finalX = x;
-                let finalY = y;
-                let textAnchor: "start" | "middle" | "end" = "middle";
+                  let finalX = x;
+                  let finalY = y;
+                  let textAnchor: "start" | "middle" | "end" = "middle";
 
-                // Adjust for vertical (up/down) text positioning
-                if (angle > 75 && angle < 105) {
-                  // Top center (90 degrees): move label slightly UP
-                  finalY += -9;
-                  textAnchor = "middle";
-                } else if (angle > 240 && angle < 300) {
-                  // Bottom center (270 degrees): move label slightly DOWN
-                  finalY += 9;
-                  textAnchor = "middle";
-                  // Adjust for horizontal (right/left) text positioning
-                } else if ((angle >= 0 && angle <= 45) || angle >= 315) {
-                  // Right side (0–45 degrees or near 360): move label a bit to the RIGHT
-                  finalX += 3;
-                  textAnchor = "start";
-                } else if (angle >= 135 && angle <= 225) {
-                  // Left side (180 degrees): move label a bit to the LEFT
-                  finalX -= 3;
-                  textAnchor = "end";
-                } else {
-                  // Any other angle (default fallback): decide based on x position
-                  textAnchor = finalX > cx ? "start" : "end";
-                }
+                  if (angle > 75 && angle < 105) {
+                    finalY += -9;
+                    textAnchor = "middle";
+                  } else if (angle > 240 && angle < 300) {
+                    finalY += 9;
+                    textAnchor = "middle";
+                  } else if ((angle >= 0 && angle <= 45) || angle >= 315) {
+                    finalX += 3;
+                    textAnchor = "start";
+                  } else if (angle >= 135 && angle <= 225) {
+                    finalX -= 3;
+                    textAnchor = "end";
+                  } else {
+                    textAnchor = finalX > cx ? "start" : "end";
+                  }
 
-                return (
-                  <text
-                    x={finalX}
-                    y={finalY}
-                    textAnchor={textAnchor}
-                    dominantBaseline="central"
-                    fill={COLORS[severity]}
-                    fontSize={16}
-                    style={{cursor: "pointer"}}
-                    onClick={() => handleSeverityClick(severity)}
-                  >
-                    {value}
-                  </text>
-                );
-              }}
-            >
-              {summaryData.map((entry, idx) => (
-                <Cell key={`cell-${idx}`} fill={COLORS[entry.name]} />
-              ))}
-            </Pie>
-            <Tooltip />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
+                  return (
+                    <text
+                      x={finalX}
+                      y={finalY}
+                      textAnchor={textAnchor}
+                      dominantBaseline="central"
+                      fill={COLORS[severity]}
+                      fontSize={16}
+                      style={{cursor: "pointer"}}
+                      onClick={() => handleSeverityClick(severity)}
+                    >
+                      {value}
+                    </text>
+                  );
+                }}
+              >
+                {summaryData.map((entry, idx) => (
+                  <Cell key={`cell-${idx}`} fill={COLORS[entry.name]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="text-center text-gray-400 mb-6">
+          No vulnerabilities detected in this report.
+        </div>
+      )}
 
       {/* Severity Filters */}
       <div className="mb-4 flex flex-wrap gap-4">
@@ -310,34 +309,45 @@ export default function ReportDetail() {
           </tr>
         </thead>
         <tbody>
-          {paginated.map((v, i) => (
-            <tr
-              key={`${v.id}-${i}`}
-              className="hover:bg-gray-700 hover:text-white"
-            >
-              <td className="px-4 py-2">{v.target}</td>
-              <td className="px-4 py-2">
-                {v.id.startsWith("CVE-") ? (
-                  <a
-                    href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${v.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-400 hover:underline"
-                  >
-                    {v.id}
-                  </a>
-                ) : (
-                  v.id
-                )}
-              </td>
-              <td className="px-4 py-2">{v.pkg}</td>
+          {paginated.length === 0 ? (
+            <tr>
               <td
-                className={`px-4 py-2 font-semibold ${SEVERITY_CLASSES[v.severity]}`}
+                colSpan={4}
+                className="text-center text-gray-400 px-4 py-6 italic"
               >
-                {v.severity}
+                No matching vulnerabilities
               </td>
             </tr>
-          ))}
+          ) : (
+            paginated.map((v, i) => (
+              <tr
+                key={`${v.id}-${i}`}
+                className="hover:bg-gray-700 hover:text-white"
+              >
+                <td className="px-4 py-2">{v.target}</td>
+                <td className="px-4 py-2">
+                  {v.id.startsWith("CVE-") ? (
+                    <a
+                      href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${v.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:underline"
+                    >
+                      {v.id}
+                    </a>
+                  ) : (
+                    v.id
+                  )}
+                </td>
+                <td className="px-4 py-2">{v.pkg}</td>
+                <td
+                  className={`px-4 py-2 font-semibold ${SEVERITY_CLASSES[v.severity]}`}
+                >
+                  {v.severity}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
 

@@ -1,3 +1,5 @@
+# File: backend/app/api/routes/reports.py
+
 import json
 import uuid
 import re
@@ -125,7 +127,9 @@ async def upload_report(report: TrivyReport):
     artifact_name = fallback_artifact_name(report.ArtifactName, "artifact-from-api")
     report_dict = report.model_dump()
     report_dict.setdefault("_meta", {})
-    report_dict["_meta"].update({"timestamp": now_utc(), "id": report_id})
+    report_dict["_meta"].update(
+        {"timestamp": now_utc(), "id": report_id, "uploaded_at": now_utc()}
+    )
     report_dict["ArtifactName"] = artifact_name
     await storage.save_report(report_id, report_dict)
     return {"id": report_id, "artifact": artifact_name}
@@ -135,7 +139,7 @@ async def upload_report(report: TrivyReport):
 async def upload_report_file(request: Request, file: UploadFile = File(...)):
     # Get client IP and apply rate limiting
     client_ip = get_client_ip(request)
-    rate_limiter.check(client_ip)  # Use the RateLimiter instance directly
+    rate_limiter.check(client_ip)
 
     filename = (file.filename or "").strip().lower()
     if not any(filename.endswith(ext) for ext in ALLOWED_EXTENSIONS):
@@ -184,7 +188,9 @@ async def upload_report_file(request: Request, file: UploadFile = File(...)):
         report.ArtifactName, sanitize_filename(filename)
     )
     sanitized_data.setdefault("_meta", {})
-    sanitized_data["_meta"].update({"timestamp": now_utc(), "id": report_id})
+    sanitized_data["_meta"].update(
+        {"timestamp": now_utc(), "id": report_id, "uploaded_at": now_utc()}
+    )
     sanitized_data["ArtifactName"] = artifact_name
     await storage.save_report(report_id, sanitized_data)
     return {"id": report_id, "artifact": artifact_name}
@@ -236,7 +242,8 @@ async def get_report(
     summary = {
         "artifact": report.ArtifactName,
         "timestamp": format_timestamp(
-            report_data.get("_meta", {}).get("timestamp", "")
+            report_data.get("_meta", {}).get("uploaded_at")
+            or report_data.get("_meta", {}).get("timestamp", "")
         ),
         "critical": severity_count.get("CRITICAL", 0),
         "high": severity_count.get("HIGH", 0),
@@ -288,7 +295,6 @@ async def metrics():
 
 @router.get("/config", summary="Get system configuration")
 async def get_config():
-    """Return the current configuration settings (excluding sensitive data)."""
     settings = get_settings()
     config_dict = settings.dict()
 
