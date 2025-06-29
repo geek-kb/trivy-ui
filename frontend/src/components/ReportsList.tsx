@@ -28,20 +28,45 @@ export default function ReportsList() {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = Number(searchParams.get("pageSize")) || 10;
 
+  const countSeverities = (report: any, level: string): number => {
+    return (
+      report?.Results?.flatMap((r: any) => r.Vulnerabilities || []).filter(
+        (v: any) => v.Severity?.toUpperCase() === level,
+      ).length || 0
+    );
+  };
+
   const fetchReports = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`/api/reports`);
       if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setReports(data.results || []);
+      const raw = await res.json();
+
+      console.log("Raw backend data:", raw);
+
+      const normalized = Array.isArray(raw)
+        ? raw.map((r) => ({
+            id: r.UID || r.ID || r.id || "unknown-id",
+            artifact: r.ArtifactName || r.artifact || "unknown",
+            timestamp: r.CreatedAt || r.timestamp || "",
+            critical: countSeverities(r, "CRITICAL"),
+            high: countSeverities(r, "HIGH"),
+            medium: countSeverities(r, "MEDIUM"),
+            low: countSeverities(r, "LOW"),
+          }))
+        : [];
+
+      console.log("Normalized reports:", normalized);
+      setReports(normalized);
       setSelected(new Set());
     } catch (e: any) {
       console.error("Fetch reports error:", e);
       setError(e.message || "Failed to load reports");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -60,7 +85,7 @@ export default function ReportsList() {
   };
 
   const filtered = reports.filter((r) =>
-    r.artifact.toLowerCase().includes(artifactInput.toLowerCase()),
+    r.artifact?.toLowerCase?.().includes(artifactInput.toLowerCase()),
   );
   const sorted = [...filtered].sort((a, b) => {
     const A = a[sortField];
@@ -150,7 +175,6 @@ export default function ReportsList() {
             searchParams.set("page", "1");
             setSearchParams(searchParams);
           }}
-          // Light mode: black text on white bg; Dark mode: white text on dark bg
           className="border px-3 py-2 rounded flex-1 text-black bg-white dark:text-white dark:bg-gray-800"
         />
       </div>
@@ -170,10 +194,7 @@ export default function ReportsList() {
       ) : (
         <div className="overflow-auto rounded-lg shadow ring-1 ring-black ring-opacity-5">
           <table className="min-w-full divide-y divide-gray-700 text-sm">
-            <thead
-              // Light mode header bg; Dark mode header darker bg
-              className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white"
-            >
+            <thead className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white">
               <tr>
                 <th className="px-4 py-2 text-center font-bold">
                   <input
@@ -262,7 +283,6 @@ export default function ReportsList() {
                 searchParams.set("page", "1");
                 setSearchParams(searchParams);
               }}
-              // Light mode: black text; Dark mode: white text
               className="ml-2 border rounded p-1 text-black dark:text-white bg-white dark:bg-gray-800"
             >
               {[10, 25, 50, 100].map((n) => (
