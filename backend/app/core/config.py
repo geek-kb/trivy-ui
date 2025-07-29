@@ -30,6 +30,15 @@ class Settings(BaseSettings):
     # Optional timezone setting
     TIMEZONE: Optional[str] = os.getenv("TIMEZONE")
 
+    @property
+    def POSTGRES_URL(self) -> str:
+        """Build PostgreSQL connection URL from individual components."""
+        return (
+            f"postgresql+asyncpg://"
+            f"{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
     class Config:
         case_sensitive = True
 

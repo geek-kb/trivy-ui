@@ -46,9 +46,23 @@ export default function ReportsList() {
 
       console.log("Raw backend data:", raw);
 
-      const normalized = Array.isArray(raw)
-        ? raw
-            .filter((r) => typeof r?._meta?.id === "string")
+      // Handle both old array format and new object format with debug info
+      const reportsArray = raw.reports || (Array.isArray(raw) ? raw : []);
+      
+      if (raw._debug) {
+        console.log("Backend debug info:", raw._debug);
+        console.log(`Backend reports count: ${raw._debug.total_reports}`);
+      }
+
+      const normalized = Array.isArray(reportsArray)
+        ? reportsArray
+            .filter((r) => {
+              const hasValidId = typeof r?._meta?.id === "string";
+              if (!hasValidId) {
+                console.log("Report filtered out (no valid _meta.id):", r);
+              }
+              return hasValidId;
+            })
             .map((r) => ({
               id: r._meta.id,
               artifact: r.ArtifactName || r.artifact || "unknown",
@@ -66,6 +80,7 @@ export default function ReportsList() {
         : [];
 
       console.log("Normalized reports:", normalized);
+      console.log(`Frontend showing ${normalized.length} reports`);
       setReports(normalized);
       setSelected(new Set());
     } catch (e: any) {

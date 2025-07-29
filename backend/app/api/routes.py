@@ -110,15 +110,91 @@ def root():
 
 
 @router.get("/reports")
-async def list_reports():
+async def list_reports(
+    skip: int = Query(default=0, ge=0),
+    limit: int = Query(default=20, ge=1, le=100),
+    artifact: Optional[str] = Query(None),
+    min_critical: int = Query(default=0, ge=0),
+    min_high: int = Query(default=0, ge=0),
+    min_medium: int = Query(default=0, ge=0),
+    min_low: int = Query(default=0, ge=0),
+):
+    """List vulnerability reports with filtering and pagination."""
     try:
-        return await storage.list_reports()
+        # Get all reports from storage
+        logger.info("Attempting to retrieve reports from storage...")
+        reports_data = await storage.list_reports()
+        logger.info(f"Retrieved {len(reports_data) if reports_data else 0} reports from storage")
+
+        # Handle empty reports case
+        if not reports_data:
+            logger.warning("No reports found in storage")
+            return {
+                "_debug": {
+                    "total_reports": 0,
+                    "backend_working": True,
+                    "timestamp": now_utc()
+                },
+                "reports": []
+            }
+
+        filtered_reports = []
+        
+        for data in reports_data:
+            if not isinstance(data, dict):
+                logger.warning(f"Invalid report data format: {type(data)}")
+                continue
+
+            # Ensure _meta.id exists
+            meta = data.get("_meta", {})
+            if not meta.get("id"):
+                logger.warning(f"Report missing _meta.id: {data.get('ArtifactName', 'unknown')}")
+                # Try to add a default ID if missing
+                if "_meta" not in data:
+                    data["_meta"] = {}
+                if not data["_meta"].get("id"):
+                    data["_meta"]["id"] = str(uuid.uuid4())
+                    logger.info(f"Added missing ID to report: {data['_meta']['id']}")
+
+            # Apply artifact filter if specified
+            if artifact:
+                artifact_name = data.get("ArtifactName", "").lower()
+                if artifact.lower() not in artifact_name:
+                    continue
+
+            filtered_reports.append(data)
+
+        # Sort and return the raw reports data (frontend expects raw format)
+        filtered_reports.sort(key=lambda x: x.get("_meta", {}).get("timestamp", ""), reverse=True)
+        
+        logger.info(f"Returning {len(filtered_reports)} reports to frontend")
+        for i, report in enumerate(filtered_reports[:5]):  # Log first 5 reports
+            meta = report.get("_meta", {})
+            logger.info(f"Report {i+1}: ID={meta.get('id')}, Artifact={report.get('ArtifactName')}")
+        
+        # Add a special marker in the response for debugging
+        response_data = {
+            "_debug": {
+                "total_reports": len(filtered_reports),
+                "backend_working": True,
+                "timestamp": now_utc()
+            },
+            "reports": filtered_reports
+        }
+        
+        return response_data
+
     except Exception as e:
-        logger.error(f"Failed to retrieve reports: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve reports",
-        )
+        logger.error(f"Failed to retrieve reports: {str(e)}")
+        return {
+            "_debug": {
+                "total_reports": 0,
+                "backend_working": False,
+                "error": str(e),
+                "timestamp": now_utc()
+            },
+            "reports": []
+        }
 
 
 @router.post("/report")
@@ -192,7 +268,12 @@ async def upload_report_file(request: Request, file: UploadFile = File(...)):
         {"timestamp": now_utc(), "id": report_id, "uploaded_at": now_utc()}
     )
     sanitized_data["ArtifactName"] = artifact_name
+    
+    # Add debug logging for upload
+    logger.info(f"Saving report with ID: {report_id}, artifact: {artifact_name}")
     await storage.save_report(report_id, sanitized_data)
+    logger.info(f"Successfully saved report {report_id}")
+    
     return {"id": report_id, "artifact": artifact_name}
 
 
@@ -323,3 +404,34 @@ async def get_config():
             ),
         },
     }
+
+
+@router.get("/test-storage")
+async def test_storage():
+    """Test endpoint to debug storage issues"""
+    try:
+        test_data = {
+            "ArtifactName": "test-artifact",
+            "Results": [],
+            "SchemaVersion": 2
+        }
+        
+        # Try to save a test report
+        await storage.save_report("test-debug-123", test_data)
+        
+        # Try to list reports
+        reports = await storage.list_reports()
+        
+        return {
+            "status": "success",
+            "message": "Storage test passed",
+            "reports_count": len(reports),
+            "sample_reports": reports[:3] if reports else "No reports found yet"
+        }
+    except Exception as e:
+        import traceback
+        return {
+            "status": "error", 
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }

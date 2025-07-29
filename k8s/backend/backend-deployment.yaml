@@ -26,6 +26,8 @@ spec:
           image: camelel/trivy-ui-backend:latest
           imagePullPolicy: Always
           env:
+            - name: DB_BACKEND
+              value: "postgres"
             - name: POSTGRES_SERVER
               valueFrom:
                 configMapKeyRef:

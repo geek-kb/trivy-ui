@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import declarative_base
 
 from app.core.config import get_settings
+from app.core.logging import logger
 
 # Configure logging
 logger = logging.getLogger("app")
@@ -94,12 +95,11 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_factory() as session:
         try:
             yield session
+            await session.commit()
         except Exception as e:
             await session.rollback()
             logger.error(f"Database session error: {str(e)}")
             raise
-        finally:
-            await session.close()
 
 
 async def close_db_connection() -> None:

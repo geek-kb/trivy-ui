@@ -1,9 +1,7 @@
 # File: backend/app/models/report.py
 
 from sqlalchemy import Column, String, Text, DateTime, func
-from sqlalchemy.orm import declarative_base
-
-Base = declarative_base()
+from app.core.database import Base
 
 
 class ReportModel(Base):
