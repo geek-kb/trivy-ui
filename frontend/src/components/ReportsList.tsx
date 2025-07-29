@@ -36,6 +36,22 @@ export default function ReportsList() {
     );
   };
 
+  const formatTimestamp = (timestamp: string): string => {
+    if (!timestamp) return "";
+    try {
+      const date = new Date(timestamp);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+    } catch (error) {
+      return timestamp; // Return original if parsing fails
+    }
+  };
+
   const fetchReports = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -280,7 +296,7 @@ export default function ReportsList() {
                       {r.artifact}
                     </Link>
                   </td>
-                  <td className="px-4 py-2">{r.timestamp}</td>
+                  <td className="px-4 py-2">{formatTimestamp(r.timestamp)}</td>
                   <td className="px-4 py-2 text-center">
                     {badge(r.critical, "critical")}
                   </td>
