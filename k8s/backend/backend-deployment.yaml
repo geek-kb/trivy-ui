@@ -27,7 +27,10 @@ spec:
           imagePullPolicy: Always
           env:
             - name: DB_BACKEND
-              value: "postgres"
+              valueFrom:
+                configMapKeyRef:
+                  name: postgres
+                  key: DB_BACKEND
             - name: POSTGRES_SERVER
               valueFrom:
                 configMapKeyRef:

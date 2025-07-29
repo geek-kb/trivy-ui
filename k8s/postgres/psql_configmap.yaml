@@ -1,12 +1,11 @@
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres
+  namespace: trivy-ui
 data:
+  DB_BACKEND: filesystem
   DB_HOST: postgres.trivy-ui.svc.cluster.local
   DB_NAME: trivydb
   DB_ROOT_USER: postgres
-kind: ConfigMap
-metadata:
-  creationTimestamp: "2025-04-23T09:17:20Z"
-  name: postgres
-  namespace: trivy-ui
-  resourceVersion: "89270"
-  uid: 39ed385c-dc21-4742-bd3d-8654dfbc4906
+  DB_PORT: "5432"
